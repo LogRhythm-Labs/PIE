@@ -1,0 +1,32 @@
+%account was limited%
+%activate your account%
+%confirm your informations%
+%delayed payment%
+%failed to validate%
+%fallow our process%
+%fraud notice%
+%has been compromised%
+%informations has been%
+%informations on your account%
+%it help  desk%
+%it help desk%
+%multiple login attempt%
+%prevent further unauthorised%
+%prevent further unauthorized%
+%restricted if you fail to update%
+%submit your payment%
+%suspend your account%
+%that you validate your account%
+%trying to access your account%
+%unable to verify%
+%update in our security%
+%update your account information%
+%update your payment%
+%urged to download%
+%verify and reactivate%
+%via paypal%
+%was blocked for violation%
+%wire transfer%
+%word must be installed%
+%your account will be closed%
+%your apple id was used to sign in to%

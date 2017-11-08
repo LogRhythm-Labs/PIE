@@ -1,0 +1,133 @@
+%-(un)?b?locked%
+%/dro?pbo?x/%
+%/dropfile/%
+%/googledocs?/%
+%/googledrive/%
+%/helpdesk/%
+%/https?/www/%
+%/natwest/%
+%/newdropbox/%
+%/uploadfile/%
+%/wp-admin/%
+%/wp-includes/%
+%/www/amazon%
+%2}login%
+%20paypal
+%3}365/%
+%4}/%
+%account was limited%
+%activate your account%
+%confirm your informations%
+%delayed payment%
+%failed to validate%
+%fallow our process%
+%fraud notice%
+%has been compromised%
+%icloud-%
+%-icloud%
+%icloudcom%
+%informations has been%
+%informations on your account%
+%mail-?update%
+%mailowa%
+%multiple login attempt%
+%owaportal%
+%prevent further unauthorised%
+%prevent further unauthorized%
+%pyapal%
+%restricted if you fail to update%
+%security-?err%
+%security-?warning%
+%simplefileupload%
+%submit your payment%
+%suspend your account%
+%that you validate your account%
+%trying to access your account%
+%unable to verify%
+%update in our security%
+%update your account information%
+%update your payment%
+%urged to download%
+%verify and reactivate%
+%via paypal%
+%was blocked for violation%
+%word must be installed%
+%your account will be closed%
+%your apple id was used to sign in to%
+(?<![\x00\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4a\x4b\x4c\x4d\x4e\x4f\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5a])appie\w
+//helpdesk(?!\.)
+//webmail(?!\.)
+/\s{0
+/docu\s{0
+/office\s{0
+/wp-content/(?!\s{0
+\.000webhost(app)?\.com
+\.ezweb123\.com
+\.freetemplate\.site
+\.invoice\.php
+\.joburg
+\.my-free\.website
+\.myfreesites\.net
+\.sitey\.me
+\.top/
+\.tripod\.com
+\.weebly\.com
+\.wix\.com
+\.xyz/
+\.yolasite\.com
+\b(?<=https?://)(?!www\.paypal\.com/)\s{0
+\b(?<=https?://)(www\.)?icloud(?!\.com)
+\b(?<=https?://webmail\.)\s{0
+\w\.jar(?=\b)
+10}\.html"
+2}\=)(?!\s{0
+2}al(?!\s*\.com/)
+2}k\s{1
+3}(?!/[0-9])(?!\s{0
+3}\w
+3}outloo\s{0
+3}sign\s{1
+4}\ drop(\ )?box
+4}\ google\ drive
+4}\ one(\ )?drive
+40}\.com/)
+40}pa?y\s{0
+40}webmail\w{0
+60}\.jpg[<"\t\r\n])
+60}\.pdf[<\"\t\r\n])(?!\s{0
+60}campaign\s{0
+7}(with\ )?\ your\ email\ address
+8}(\ banking)?\ user
+account\ (is\ )?on\ hold
+blocked\ your?\ online
+chase\s{0
+contabo\.net
+dear\ \w{3
+has\ been\ limited
+has\ been\ suspended
+-icloud\wcom
+is\.gd/
+limit\ (and\ suspend\ )?your\ account
+myfreesites\.net
+new voice(\ )?mail
+notifications\ pending
+outlook\w365
+ownership\ validation\ (has\ )?expired
+pay\sa\s{0
+periodic\ maintenance
+refund\ not\ approved
+secure\ update
+securely\ \s{3
+sign\ in\s{0
+sitey\.me
+suspicious\ activit
+temporar(il)?y\ deactivated
+tiny\.cc/
+unusual\ activity
+updated?\ your\ account\ record
+verification\ required
+verify\ your\ id\s
+we\ have\ locked
+wire\ transfer
+your\ (customer\ )?account\ has
+your\ (customer\ )?account\ was
