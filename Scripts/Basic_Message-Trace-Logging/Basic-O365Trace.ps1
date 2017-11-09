@@ -3,7 +3,7 @@
   # PIE - Phishing Intelligence Engine #
   # LogRhythm Security Operations      #
   # greg . foss @ logrhythm . com      #
-  # v1.0  --  October, 2017            #
+  # v1.0  --  November, 2017           #
   #====================================#
 
 # Copyright 2017 LogRhythm Inc.   
