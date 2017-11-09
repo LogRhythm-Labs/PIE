@@ -28,7 +28,7 @@ The Phishing Intelligence Engine (PIE) is a framework that will assist with the 
 
 LogRhythm Blog Post: https://logrhythm.com/blog/phishing-intelligence-engine-open-source-release/
 
-Blue Hat '17 Slides: Will be posted on 11/10/2017
+BlueHat 17 Slides: Will be posted on 11/10/2017
 
 Black Hat 2017 Slides: https://www.slideshare.net/heinzarelli/security-automation-and-orchestration
 
@@ -72,6 +72,19 @@ Addon for Microsoft Outlook to allow for easy reporting of Phishing Attacks.
 High level overview of the PIE architecture and workflow:
 
 ![PIE Architecture](/images/PIE-Architecture.png)
+
+
+## [Thanks]
+
+This project would not be a success without the folks below and the various third-party API integration providers. Thank you!
+
+- bruce deakyne -  Cisco AMP Threat GRID Plugin
+- jake reynolds - OpenDNS Plugin
+- matt willems - LogRhythm Case API Plugin
+- steve warburton - User Acceptance Testing
+- zack rowland - Outlook Button
+- SwiftOnSecurity - Phishing RegEx
+
 
 ## [License]
 
