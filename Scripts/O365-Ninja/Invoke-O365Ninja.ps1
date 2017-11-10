@@ -30,7 +30,7 @@ USAGE:
 param( 
     [string]$username,
     [string]$password,
-    [string]$socMailbox,
+    [parameter(Mandatory = $True)] [string]$socMailbox,
     [string]$LogRhythmHost,
     [string]$caseAPItoken,
     [string]$caseNumber,
