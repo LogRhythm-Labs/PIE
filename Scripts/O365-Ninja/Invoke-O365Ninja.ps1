@@ -172,6 +172,11 @@ try {
 
 if ( $getMail ) {
 
+    if ( -Not $socMailbox ) {
+        Write-Host "Target mailbox -socMailbox is required for this option" -ForegroundColor Red
+        Break;
+    }
+    
     if ( $past ) {
         $day = $past
     } else {
@@ -204,6 +209,11 @@ if ( $getMail ) {
 
 if ( $scrapeMail ) {
 
+    if ( -Not $socMailbox ) {
+        Write-Host "Target mailbox -socMailbox is required for this option" -ForegroundColor Red
+        Break;
+    }
+    
     if ( $subject ) {
 
         for( $c=1; $c -lt 1001; $c++ ) {

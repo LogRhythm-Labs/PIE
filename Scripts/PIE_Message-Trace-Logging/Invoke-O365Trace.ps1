@@ -13,18 +13,18 @@
 
 INSTALL:
 
-    Review lines 40 through 67
+    Review lines 43 through 78
         Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
 
-    Review Lines 70 through 124
+    Review Lines 81 through 138
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
 
 USAGE:
 
     Configure as a scheduled task to run every 5-minutes:
-        powershell.exe Invoke-O365Trace.ps1
+        C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -command "& 'C:\PIE_INSTALL_DIR\Invoke-O365Trace.ps1'"
 
 #>
 
@@ -36,19 +36,38 @@ $banner = @"
                                          |___/                                      |___/                                             |___/                  
 "@
 
-
-# ================================================================================
-# DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
-# ================================================================================
-
 # Mask errors
 $ErrorActionPreference= 'silentlycontinue'
 
-# Office 365 Connectivity
-$username = "SERVICE ACCOUNT USERNAME"
-$password = "SERVICE ACCOUNT PASSWORD"
+
+# ================================================================================
+# DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
+#
+# ****************************** EDIT THIS SECTION ******************************
+# ================================================================================
+
+# Choose how to handle credentials - set the desired flag to $true
+#     Be sure to set credentials or xml file location below
+$EncodedXMLCredentials = $true
+$PlainText = $false
+
+# XML Configuration - store credentials in an encoded XML (best option)
+if ( $EncodedXMLCredentials ) {
+    #
+    # To generate the XML:
+    #      PS C:\> Get-Credential | Export-Clixml Service-Account_cred.xml
+    #
+    $CredentialsFile = "C:\Path-To-Credentials-File.xml"
+}
+
+# Plain Text Credentials (not recommended)
+if ( $PlainText ) {
+    $username = "SERVICE ACCOUNT USERNAME"
+    $password = "SERVICE ACCOUNT PASSWORD"
+}
+
+# Mailbox where Phishing emails will be reported
 $socMailbox = "SOC MAILBOX ADDRESS"
-$socMailboxPass = "SOC MAILBOX PASSWORD"
 
 # LogRhythm Case API Integration
 $LogRhythmHost = "LOGRHYTHM-IP:PORT"
@@ -58,16 +77,6 @@ $spammerList = "\\LOGRHYTHM-EMDB\list_import\Known-Spammer-Emails.txt"
 # Case Folders and Logging
 $pieFolder = "C:\PIE_INSTALL_FOLDER"
 
-# Do not modify these items:
-$traceLog = "$pieFolder\logs\ongoing-trace-log.csv"
-$phishLog = "$pieFolder\logs\ongoing-phish-log.csv"
-$spamTraceLog = "$pieFolder\logs\ongoing-outgoing-spam-log.csv"
-$analysisLog = "$pieFolder\logs\analysis.csv"
-$tmpLog = "$pieFolder\logs\tmp.csv"
-$caseFolder = "$pieFolder\cases\"
-$tmpFolder = "$pieFolder\tmp\"
-$log = $true
-
 
 # ================================================================================
 # Third Party Analytics
@@ -75,11 +84,11 @@ $log = $true
 
 # For each supported module, set the flag to $true and enter the associated API key
 
-# Auto Quarantine or Auto Ban? DANGEROUS - USE AT YOUR OWN RISK
-$autoQuarantine = $true # Auto quarantine and/or ban the sender when the email threat score is greater than the 'threatThreshold' below
+# Auto Quarantine or Auto Ban?
+$autoQuarantine = $true # Auto quarantine and/or ban the sender
 $subjectAutoQuarantine = $false # Auto quarantine and create a case if the email matches the subject line regex check
 $autoBan = $false # Auto blacklist known-bad senders
-$threatThreshold = 5
+$threatThreshold = 5 # Actions run when the threat score is greater than the 'threatThreshold' below
 
 # General Link Analysis - No API key required and enabled by default
 $linkRegexCheck = $true
@@ -123,10 +132,25 @@ $wrikeAPI = ""
 $wrikeFolder = ""
 $wrikeUser = ""
 
+# ================================================================================
+# END GLOBAL PARAMETERS
+# ************************* DO NOT EDIT BELOW THIS LINE *************************
+# ================================================================================
+
 
 # ================================================================================
-# DATE, FILE, AND GLOBAL EMAIL PARSING
+# Date, File, and Global Email Parsing
 # ================================================================================
+
+# Folder Structure
+$traceLog = "$pieFolder\logs\ongoing-trace-log.csv"
+$phishLog = "$pieFolder\logs\ongoing-phish-log.csv"
+$spamTraceLog = "$pieFolder\logs\ongoing-outgoing-spam-log.csv"
+$analysisLog = "$pieFolder\logs\analysis.csv"
+$tmpLog = "$pieFolder\logs\tmp.csv"
+$caseFolder = "$pieFolder\cases\"
+$tmpFolder = "$pieFolder\tmp\"
+$log = $true
 
 # Date Variables
 $date = Get-Date
@@ -158,6 +182,17 @@ function GetSubfolders($Parent) {
 # Office 365 API Authentication
 # ================================================================================
 
+if ( $EncodedXMLCredentials ) {
+    try {
+        $cred = Import-Clixml -Path $CredentialsFile
+        $Username = $cred.Username
+        $Password = $cred.GetNetworkCredential().Password
+    } catch {
+        Write-Error ("Could not find credentials file: " + $CredentialsFile)
+        Break;
+    }
+}
+
 try {
     if (-Not ($password)) {
         $cred = Get-Credential
@@ -169,7 +204,8 @@ try {
     $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $cred -Authentication Basic -AllowRedirection
     Import-PSSession $Session -AllowClobber
 } Catch {
-    Write-Host "Access Denied..."
+    Write-Error "Access Denied..."
+    Break;
 }
 
 

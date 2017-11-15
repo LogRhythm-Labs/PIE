@@ -11,6 +11,12 @@
 
 <#
 
+INSTALL:
+
+    Review lines 40 through 72
+        Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
+        Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
+
 USAGE:
 
     Configure as a scheduled task to run every 5-minutes:
@@ -28,27 +34,51 @@ $banner = @"
 
 "@
 
-
-# ================================================================================
-# DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
-# ================================================================================
-
 # Mask errors
 $ErrorActionPreference= 'silentlycontinue'
 
-# Office 365 Connectivity
-$username = "USERNAME HERE"
-$password = "PASSWORD HERE"
+# ================================================================================
+# DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
+#
+# ****************************** EDIT THIS SECTION ******************************
+# ================================================================================
+
+# Choose how to handle credentials - set the desired flag to $true
+#     Be sure to set credentials or xml file location below
+$EncodedXMLCredentials = $false
+$PlainText = $false
+
+# XML Configuration - store credentials in an encoded XML (best option)
+if ( $EncodedXMLCredentials ) {
+    #
+    # To generate the XML:
+    #      PS C:\> Get-Credential | Export-Clixml Service-Account_cred.xml
+    #
+    $CredentialsFile = "C:\Path-To-Credentials-File.xml"
+}
+
+# Plain Text Credentials (not recommended)
+if ( $PlainText ) {
+    $username = "SERVICE ACCOUNT USERNAME"
+    $password = "SERVICE ACCOUNT PASSWORD"
+}
 
 # Case Folders and Logging
 $logFolder = "C:\PIE-INSTALL-DIRECTORY"
-$traceLog = "$logFolder\logs\ongoing-trace-log.csv"
-$log = $true
+
+# ================================================================================
+# END GLOBAL PARAMETERS
+# ************************* DO NOT EDIT BELOW THIS LINE *************************
+# ================================================================================
 
 
 # ================================================================================
 # DATE, FILE, AND GLOBAL EMAIL PARSING
 # ================================================================================
+
+# Folder Structure
+$traceLog = "$logFolder\logs\ongoing-trace-log.csv"
+$log = $true
 
 # Date Variables
 $date = Get-Date
@@ -63,6 +93,17 @@ $day = Get-Date -Format MM-dd-yyyy
 # ================================================================================
 # Office 365 API Authentication
 # ================================================================================
+
+if ( $EncodedXMLCredentials ) {
+    try {
+        $cred = Import-Clixml -Path $CredentialsFile
+        $Username = $cred.Username
+        $Password = $cred.GetNetworkCredential().Password
+    } catch {
+        Write-Error ("Could not find credentials file: " + $CredentialsFile)
+        Break;
+    }
+}
 
 try {
     if (-Not ($password)) {

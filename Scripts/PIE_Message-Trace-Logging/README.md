@@ -18,44 +18,76 @@ This script handles the message trace logging, dynamic analytics, and automated 
 
 ## [Install]
 
-	1) Build a Windows Server and install Microsoft Outlook. Configure Outlook with access to your defined Phishing Inbox.
+1) Build a Windows Server and install Microsoft Outlook. Configure Outlook with access to your defined Phishing Inbox.
 
-    2) Set up auto-response for all new messages on the Phishing inbox, and notify your users to forward suspected phishing messages here. Leave Outlook open on the server.
+2) Set up auto-response for all new messages on the Phishing inbox, and notify your users to forward suspected phishing messages here. Leave Outlook open on the server.
 
-    3) Copy the entire contents of this folder over to the directory you plan to run PIE from on the Windows server.
+3) Copy the entire contents of this folder over to the directory you plan to run PIE from on the Windows server.
 
-    4) Open the Invoke-O365Trace.ps1 script and review the contents. You will need to add credentials and API keys where desired.
+4) Decide how you would like to store credentials - both options have a level of risk, so ensure you monitor the PIE server appropriately!
 
-        Review lines 40 through 67
-            
-            Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
-            Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
+    a) Generate an XML document containing the credentials for the inbox and service account.
 
-        Review Lines 70 through 124
-            
-            For each setting that you would like to enable, change the value from $false to $true
-            For each enabled third party plugin, set the API key and other required paramters
+        Set $EncodedXMLCredentials = $true
 
-    5) Open the plugins directory. Within this folder, edit Case-API.ps1
+        Run the following commands, and take note of the filenames and where these files are stored:
 
-        Review Line 30
+        PS C:\> Get-Credential | Export-Clixml Service-Account_cred.xml
 
-            Edit the $caseFolder parameter to define where you installed PIE, per step 4. Ensure that you leave \plugins at the end.
+        Enter the full path to the XML file on line 57
 
-    6) Run Invoke-O365Trace.ps1 manually (no switches required) and ensure that logs are being pulled into the 'logs' directory.
+    b) Enter plain text passwords.
 
-        Don't worry about the warnings that are thrown - this is completely normal.
+        Set $PlainText = $true
 
-    7) Configure Invoke-O365Trace.ps1 to run as a scheduled task every 5 minutes.
-        
-        C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -command "& 'C:\PIE_INSTALL_DIR\Invoke-O365Trace.ps1'"
+        Enter your service account credentials on lines 62 and 63
 
-    8) Configure the LogRhythm SIEM to ingest this data, import the installed dashboards, and configure desired AIE alarms.
+5) Open the Invoke-O365Trace.ps1 script and review the contents. You will need to add credentials and API keys where desired.
 
-        Office 365 Message Tracking parsing - Should be included in the Knowledge Base, but if it is not, you can use the following RegEx:
-            
-            ^"(?<session>[^"]*)","[^"]*","(?<sender>[^"]*)","(?<recipient>[^"]*)",(?:"<dip>")?,(?:"<sip>")?,(?:"(?<subject>.*?)")?,"(?<command>(?<status>[^"]*))","(?<size>\d*)"
+    Review lines 43 through 78
+    
+        Add credentials under each specified section (as documented in step 4)
+        Review Office 365 Connectivity and LogRhythm Case API Integration
+        Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from ($logFolder variable)
 
+    Review Lines 81 through 138
+
+        For each setting that you would like to enable, change the value from $false to $true
+        For each enabled third party plugin, set the API key and other required paramters
+
+6) Open the plugins directory. Within this folder, edit Case-API.ps1
+
+    Review Line 30
+
+        Edit the $caseFolder parameter to define where you installed PIE, per step 4. Ensure that you leave \plugins at the end.
+
+7) Run Invoke-O365Trace.ps1 manually (no switches required) and ensure that logs are being pulled into the 'logs' directory.
+
+    Don't worry about the warnings that are thrown - this is completely normal.
+
+8) Configure Invoke-O365Trace.ps1 to run as a scheduled task every 5 minutes.
+    
+    C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -command "& 'C:\PIE_INSTALL_DIR\Invoke-O365Trace.ps1'"
+
+9) Configure the LogRhythm SIEM to ingest this data.
+
+    Office 365 Message Tracking parsing - This is included in the LogRhythm Knowledgebase.
+
+    Configure this log source and select 'BETA : LogRhythm  Default' for the Message Processing Engine (MPE) Policy
+
+    ![Log Source Type](/images/O365-Message-Tracking_Log-Source.png)
+
+    Next, set the time parsing under the 'Flat File Settings' tab. If this option does not exist, add the following regex:
+
+        <M>/<d>/<yy> <h>:<m>:<s> <t>
+
+    ![Flat File Settings](/images/O365-Message-Tracking_Time-Format.png)
+    
+    If you'd like to customize the parsing in any way, below is the current RegEx used to parse Office 365 Message Tracking logs:
+
+        ^"(?<session>[^"]*)","[^"]*","(?<sender>[^"]*)","(?<recipient>[^"]*)",(?:"<dip>")?,(?:"<sip>")?,(?:"(?<subject>.*?)")?,"(?<command>(?<status>[^"]*))","(?<size>\d*)"
+
+10) Import the PIE dashboards, and configure desired AIE alarms.
 
 ## [API Integrations]
 
@@ -64,6 +96,8 @@ This script handles the message trace logging, dynamic analytics, and automated 
 [Domain Tools](https://domaintools.com)
 
 [Get Link Info](http://getlinkinfo.com/)
+
+[LogRhythm SIEM](https://logrhythm.com/solutions/security/siem/)
 
 [OpenDNS](https://www.opendns.com/)
 

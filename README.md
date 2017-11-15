@@ -80,6 +80,7 @@ This project would not be a success without the folks below and the various thir
 
 - bruce deakyne -  Cisco AMP Threat GRID Plugin
 - jake reynolds - OpenDNS Plugin
+- julian crowley - Message Tracking Log Parsing
 - matt willems - LogRhythm Case API Plugin
 - shaunessy o'brien - PIE Logo
 - steve warburton - User Acceptance Testing
