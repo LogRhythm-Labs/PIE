@@ -32,54 +32,67 @@ Import The Module
 
     PS C:\> Invoke-O365Ninja -help
 
-Command details - all of which can be chained together:
+#### Command details - all of which can be chained together:
 
-    Capture A Specific Email:
-    	PS C:\> Invoke-O365Ninja -getMail -targetUser "<user.name>" -sender "<spammer>"
+Capture A Specific Email:
 
-    Quarantine A Specific Email:
-    	PS C:\> Invoke-O365Ninja -getMail -targetUser "<user.name>" -sender "<spammer>" -nuke
+	PS C:\> Invoke-O365Ninja -getMail -targetUser "<user.name>" -sender "<spammer>"
 
-        Available switches for targeted mail capture:
-            -sender, -subject, -recipient
-    
-    Capture All Emails:
-    	PS C:\> Invoke-O365Ninja -scrapeMail -sender "<spammer>"
+Quarantine A Specific Email:
 
-    Quarantine All Emails Matching Defined Criteria:
-    	PS C:\> Invoke-O365Ninja -scrapeMail -sender "<spammer>" -nuke
+	PS C:\> Invoke-O365Ninja -getMail -targetUser "<user.name>" -sender "<spammer>" -nuke
 
-        Available switches for quarantine / extraction:
-            -sender, -subject, -recipient
-    
-    Block Sender for specific user:
-    	PS C:\> Invoke-O365Ninja -blockSender -sender "<spammer>" -recipient "<recipient>"
+    Available switches for targeted mail capture:
+        -sender, -subject, -recipient
 
-    Block Sender for the whole company - WARNING - This may take some time:
-    	PS C:\> Invoke-O365Ninja -blockSender -sender "<spammer>"
+Capture All Emails:
 
-    Remove Sender from block list for specific user:
-    	PS C:\> Invoke-O365Ninja -unblockSender -sender "<not spammer>" -recipient "<recipient>"
+	PS C:\> Invoke-O365Ninja -scrapeMail -sender "<spammer>"
 
-    Remove Sender from block list for the whole company - WARNING - This may take some time:
-    	PS C:\> Invoke-O365Ninja -unblockSender -sender "<not spammer>"
-    
-    Reset End User's Password:
-    	PS C:\> Invoke-O365Ninja -resetPassword -targetMailbox "User.Name"
+Quarantine All Emails Matching Defined Criteria:
 
-    Check Auto Forwarding Rules:
-    	PS C:\> Invoke-O365Ninja -checkForwards
+	PS C:\> Invoke-O365Ninja -scrapeMail -sender "<spammer>" -nuke
 
-    Obtain Group Memberships:
+    Available switches for quarantine / extraction:
+        -sender, -subject, -recipient
+
+Block Sender for specific user:
+
+	PS C:\> Invoke-O365Ninja -blockSender -sender "<spammer>" -recipient "<recipient>"
+
+Block Sender for the whole company - WARNING - This may take some time:
+
+	PS C:\> Invoke-O365Ninja -blockSender -sender "<spammer>"
+
+Remove Sender from block list for specific user:
+
+	PS C:\> Invoke-O365Ninja -unblockSender -sender "<not spammer>" -recipient "<recipient>"
+
+Remove Sender from block list for the whole company - WARNING - This may take some time:
+
+	PS C:\> Invoke-O365Ninja -unblockSender -sender "<not spammer>"
+
+Reset End User's Password:
+
+	PS C:\> Invoke-O365Ninja -resetPassword -targetMailbox "User.Name"
+
+Check Auto Forwarding Rules:
+
+	PS C:\> Invoke-O365Ninja -checkForwards
+
+Obtain Group Memberships:
+
     PS C:\> Invoke-O365Ninja -checkMemberships
 
-    ************************************************************
+************************************************************
 
-    All arguments require administrative access to Office 365, and must include the following parameters / supply them at runtime
-        -username, -password, -socMailbox
+All arguments require administrative access to Office 365, and must include the following parameters / supply them at runtime
+ 
+    -username, -password, -socMailbox
 
-    To take advantage of the LogRhythm SIEM integrations, the following parameters are required
-        -LogRhythmHost, -caseAPIToken, -caseNumber (optional - if not supplied a new case will be created)
+To take advantage of the LogRhythm SIEM integrations, the following parameters are required
+ 
+    -LogRhythmHost, -caseAPIToken, -caseNumber (optional - if not supplied a new case will be created)
 
 
 ## [License]
