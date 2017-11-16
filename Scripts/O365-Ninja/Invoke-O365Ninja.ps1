@@ -46,6 +46,7 @@ param(
     [switch]$blockSender,
     [switch]$unblockSender,
     [switch]$checkForwards,
+    [switch]$checkMemberships,
     [switch]$bypass,
     [switch]$nuke = $false
 )
@@ -98,6 +99,9 @@ USAGE:
     Check Auto Forwarding Rules:
     PS C:\> Invoke-O365Ninja -checkForwards
 
+    Obtain Group Memberships:
+    PS C:\> Invoke-O365Ninja -checkMemberships
+
     ************************************************************
 
     All arguments require administrative access to Office 365, and must include the following parameters / supply them at runtime
@@ -115,6 +119,7 @@ if ( $help ) {
     break;
     
 }
+
 
 # ================================================================================
 # DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
@@ -581,6 +586,31 @@ if ( $checkForwards ) {
     break;
 
 }
+
+if ( $checkMemberships ) {
+
+    Get-UnifiedGroup | Sort-Object GroupMemberCount -Descending | Select-Object DisplayName,PrimarySmtpAddress,ManagedBy,GroupMemberCount,GroupExternalMemberCount,WhenCreated,WhenChanged,Notes | Out-GridView
+    $Groups = Get-UnifiedGroup -Filter {GroupExternalMemberCount -gt 0}
+    
+    if ( $groups -gt 0 ) {
+        Write-Host "External Group Memberships Detected" -ForegroundColor Red
+        ForEach ($member in $groups) { 
+          $ext = Get-UnifiedGroupLinks -Identity $member.Identity -LinkType Members
+          ForEach ($e in $ext) {
+             If ($e.Name -match "#EXT#")
+                { Write-Host "Group " $member.DisplayName "includes guest user" $member.Name -ForegroundColor Cyan }
+          }
+        }
+        Write-Host ""
+    } else {
+        Write-Host "No External Group Memberships Detected" -ForegroundColor Cyan
+        Write-Host ""
+    }
+
+    break;
+
+}
+
 
 # ================================================================================
 # LOGRHYTHM CASE MANAGEMENT

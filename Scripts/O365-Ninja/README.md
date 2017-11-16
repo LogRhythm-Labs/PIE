@@ -70,6 +70,9 @@ Command details - all of which can be chained together:
     Check Auto Forwarding Rules:
     	PS C:\> Invoke-O365Ninja -checkForwards
 
+    Obtain Group Memberships:
+    PS C:\> Invoke-O365Ninja -checkMemberships
+
     ************************************************************
 
     All arguments require administrative access to Office 365, and must include the following parameters / supply them at runtime
