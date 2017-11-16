@@ -23,7 +23,7 @@ Basic-O365Trace.ps1 is a simple message tracking log aggregation script. This wi
 
 2) Decide how you would like to store credentials - both options have a level of risk, so ensure you monitor the PIE server appropriately!
 
-    a) Generate an XML document containing the credentials for the inbox and service account.
+    a) Option 1 - Generate an XML document containing the credentials for the inbox and service account.
 
         Set $EncodedXMLCredentials = $true
 
@@ -33,7 +33,7 @@ Basic-O365Trace.ps1 is a simple message tracking log aggregation script. This wi
 
         Enter the full path to the XML file on line 57
 
-    b) Enter plain text passwords.
+    b) Option 2 - Enter plain text passwords.
 
         Set $PlainText = $true
 
