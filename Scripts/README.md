@@ -27,6 +27,10 @@ List updater for ongoing tracking of spammer email addresses.
 
 Scripts that integrate with external API's to evaluate phishing emails for risk.
 
+#### [Basic Message Trace Logging](/Scripts/Basic_Message-Trace-Logging/)
+
+If you are only looking for ongoing Message Trace logging, this script simply pulls Message Tracking logs via the API.
+
 
 ## [License]
 
