@@ -16,6 +16,19 @@ This script handles the message trace logging, dynamic analytics, and automated 
 
 ##### If you're looking to deploy only message trace logging - use [Basic Message Trace Logging](/Scripts/Basic_Message-Trace-Logging/).
 
+
+## [System Requirements]
+
+    Minimum System Requirements:
+
+        OS: Windows 2012 R2
+        vCPU: 2
+        RAM: 8 GB
+        DISK: 100 GB
+
+        Ideally, partition the drive out, and install PIE to its own partition
+
+
 ## [Install]
 
 1) Build a Windows Server and install Microsoft Outlook. Configure Outlook with access to your defined Phishing Inbox.
@@ -26,7 +39,7 @@ This script handles the message trace logging, dynamic analytics, and automated 
 
 4) Decide how you would like to store credentials - both options have a level of risk, so ensure you monitor the PIE server appropriately!
 
-    a) Option 1 - Generate an XML document containing the credentials for the inbox and service account.
+    a) Option 1 - Generate an XML document containing the credentials for the inbox and service account. Note that this file will need to be re-generated whenever the server is rebooted!
 
         Set $EncodedXMLCredentials = $true
 
@@ -44,13 +57,13 @@ This script handles the message trace logging, dynamic analytics, and automated 
 
 5) Open the Invoke-O365Trace.ps1 script and review the contents. You will need to add credentials and API keys where desired.
 
-    Review lines 43 through 78
+    Review lines 44 through 79
     
         Add credentials under each specified section (as documented in step 4)
         Review Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from ($logFolder variable)
 
-    Review Lines 81 through 138
+    Review Lines 82 through 139
 
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters

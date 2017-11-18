@@ -13,11 +13,11 @@
 
 INSTALL:
 
-    Review lines 43 through 78
+    Review lines 43 through 79
         Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
 
-    Review Lines 81 through 138
+    Review Lines 82 through 139
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
 
@@ -52,6 +52,7 @@ $EncodedXMLCredentials = $true
 $PlainText = $false
 
 # XML Configuration - store credentials in an encoded XML (best option)
+#     This file will need to be re-generated whenever the server reboots!
 if ( $EncodedXMLCredentials ) {
     #
     # To generate the XML:
@@ -625,7 +626,7 @@ Case Folder:                 $caseID
 
                 Invoke-RestMethod "http://api.screenshotmachine.com/?key=$screenshotKey&dimension=1024x768&format=png&url=$_" -OutFile "$caseFolder$caseID\screenshot-$splitLink.png"
                     
-                $screenshotStauts = "Screenshot of potential attack website has been captured and saved with the case folder: screenshot-$splitLink.png"
+                $screenshotStatus = "Screenshot of hxxp://$splitLink website has been captured and saved with the case folder: screenshot-$splitLink.png"
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$screenshotStatus" -token $caseAPItoken
             }
         }
@@ -712,7 +713,7 @@ Case Folder:                 $caseID
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
                 } else {
-                    $sucuriStatus = "Sucuri has determined this link is clean. Full details available here: $sucuriAnalysis."
+                    $sucuriStatus = "Sucuri has determined this link is clean. Full details available here: $sucuriLink."
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
                 }
