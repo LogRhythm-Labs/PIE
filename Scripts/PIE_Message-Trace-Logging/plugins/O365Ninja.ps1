@@ -60,6 +60,7 @@ USAGE:
 param( 
     [string]$username,
     [string]$password,
+    [string]$encodedXMLCredentials,
     [string]$socMailbox,
     [string]$LogRhythmHost,
     [string]$caseAPItoken,
@@ -115,6 +116,9 @@ USAGE:
     All arguments require administrative access to Office 365, and must include the following parameters / supply them at runtime
         -username, -password, -socMailbox
 
+        -encodedXMLCredentials "C:\File-location.xml"
+            This value can be used if you would like to store your credentials in an encoded XML file
+
     To take advantage of the LogRhythm SIEM integrations, the following parameters are required
         -LogRhythmHost, -caseAPIToken, -caseNumber (optional - if not supplied a new case will be created)
 "@
@@ -154,7 +158,29 @@ Write-Output ""
 Write-Output "O365 Ninja"
 Write-Output ""
 
-# Assign Credentials and connect to Office365
+# ================================================================================
+# Office 365 API Authentication
+# ================================================================================
+
+if ( $encodedXMLCredentials ) {
+
+# XML Configuration - store credentials in an encoded XML file
+#     This file will need to be re-generated whenever your system reboots!
+#
+#     To generate the XML:
+#          PS C:\> Get-Credential | Export-Clixml Service-Account_cred.xml
+
+    $CredentialsFile = "$encodedXMLCredentials"
+    try {
+        $cred = Import-Clixml -Path $CredentialsFile
+        $Username = $cred.Username
+        $Password = $cred.GetNetworkCredential().Password
+    } catch {
+        Write-Error ("Could not find credentials file: " + $CredentialsFile)
+        Break;
+    }
+}
+
 try {
     if (-Not ($password)) {
         $cred = Get-Credential
