@@ -90,6 +90,10 @@ All arguments require administrative access to Office 365, and must include the 
  
     -username, -password, -socMailbox
 
+    -encodedXMLCredentials "C:\File-location.xml"
+
+        This value can be used if you would like to store your credentials in an encoded XML file
+
 To take advantage of the LogRhythm SIEM integrations, the following parameters are required
  
     -LogRhythmHost, -caseAPIToken, -caseNumber (optional - if not supplied a new case will be created)

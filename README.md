@@ -13,7 +13,7 @@ Copyright 2017 LogRhythm Inc. - See licensing details below
 
 The Phishing Intelligence Engine (PIE) is a framework that will assist with the detection and response to phishing attacks. An Active Defense framework built around Office 365, that continuously evaluates Message Trace logs for malicious contents, and dynamically responds as threats are identified or emails are reported.
 
-##### This framework is not officially supported by LogRhythm - use at your own risk!
+##### :rotating_light: This framework is not officially supported by LogRhythm - use at your own risk! :rotating_light:
 
 #### Features:
 
