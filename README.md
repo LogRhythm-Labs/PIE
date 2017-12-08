@@ -3,7 +3,7 @@
     Phishing Intelligence Engine
     LogRhythm Security Operations
     greg . foss @ logrhythm . com
-    v1.0  --  November, 2017
+    v1.1  --  December, 2017
 
 Copyright 2017 LogRhythm Inc. - See licensing details below
 
@@ -26,7 +26,7 @@ The Phishing Intelligence Engine (PIE) is a framework that will assist with the 
 
 ## [Additional Information]
 
-LogRhythm Blog Post: https://logrhythm.com/blog/phishing-intelligence-engine-open-source-release/
+Blog Post: https://logrhythm.com/blog/phishing-intelligence-engine-open-source-release/
 
 BlueHat v17 Slides: https://www.slideshare.net/heinzarelli/phishing-intelligence-engine-bluehat-v17
 
@@ -36,6 +36,8 @@ Security Weekly Webcast: https://www.youtube.com/watch?v=2oGMoGr4qBI
 
 
 ## [Install and Usage]
+
+Installation Walkthrough: https://www.youtube.com/watch?v=19bHJL0g154&feature=youtu.be
 
 There are multiple aspects of this framework that all work together to detect and respond to Phishing attacks:
 

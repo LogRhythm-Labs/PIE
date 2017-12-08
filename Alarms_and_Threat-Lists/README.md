@@ -1,7 +1,7 @@
 
     Alarm Configuration and Threat Lists
     LogRhythm Security Operations
-    v1.0  --  November, 2017
+    v1.1  --  December, 2017
 
 Copyright 2017 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
@@ -30,7 +30,11 @@ Once you have AIE alarms configured, you may choose to implement [SmartResponse'
 
 ![Suspicious Subject AIE](/images/AIE_Suspicious-Subject.png)
 
-4) LogRhythm Threat Intelligence Service (TIS): There are many other ways to utilize these logs, and alarms. Take advantage of the many open source and commercially available threat feeds, and generate your own, to begin to take control of phishing attacks within your company. TIS can be found on the LogRhythm Community Poratl.
+4) MailSploit AIE Rule: This rule will fire whenever a known mailsploit attack is detected. Currently, LogRhythm can identify 7 of the 14 attacks described at https://mailsploit.com using a basic RegEx check. For the other 7 attacks, the actual sender is parsed out of the email, so even though the message is spoofed, analysts can easily locate the true sender, quarantine mail from them, and block future attacks. It is possible to detect all MailSploit variants, however to do this, you need access to the email headers. This is something I plan to add to the PIE code directly in the near future.
+
+![MailSploit AIE](/images/AIE_MailSploit.png)
+
+5) LogRhythm Threat Intelligence Service (TIS): There are many other ways to utilize these logs, and alarms. Take advantage of the many open source and commercially available threat feeds, and generate your own, to begin to take control of phishing attacks within your company. TIS can be found on the LogRhythm Community Poratl.
 
 ![Threat Feeds](/images/Commercial-and-OpenSource-Threat-Feeds.png)
 
