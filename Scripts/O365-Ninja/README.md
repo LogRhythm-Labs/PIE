@@ -2,7 +2,7 @@
     Office 365 Ninja
     LogRhythm Security Operations
     greg . foss @ logrhythm . com
-    v1.0  --  November, 2017
+    v1.02  --  January, 2018
 
 Copyright 2017 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
@@ -24,6 +24,10 @@ This script is also integrated directly into the LogRhythm SIEM as a [SmartRespo
 Import The Module
 	
 	PS C:\> Import-Module .\O365-Ninja.ps1
+
+Ensure that the user running this script is a member of the Discovery Management Exchange Security Group
+    
+    More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
 
 
 ## [Usage]

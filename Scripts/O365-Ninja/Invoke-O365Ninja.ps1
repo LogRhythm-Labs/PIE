@@ -3,7 +3,7 @@
   #       Office 365 Ninja             #
   # LogRhythm Security Operations      #
   # greg . foss @ logrhythm . com      #
-  # v1.01  --  November, 2017          #
+  # v1.2  --  January, 2018            #
   #====================================#
 
 # Copyright 2017 LogRhythm Inc.   
@@ -13,16 +13,21 @@ function Invoke-O365Ninja {
 
 <#
 
-SYNOPSIS:
+.SYNOPSIS
     
     Collection of useful commands for easy integration with Office 365 and the LogRhythm SIEM
     Automate the full response to phishing attacks by dynamically blocking and quarantining delivered mail
 
-USAGE:
+.USAGE
 
     Run the following command for a list of options associated with this script:
 
         PS C:\> Invoke-O365Ninja -help
+
+.PREREQUISITE
+
+    Ensure that the user running this script is a member of the Discovery Management Exchange Security Group
+    More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
 
 #>
 
@@ -192,7 +197,7 @@ try {
     $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $cred -Authentication Basic -AllowRedirection
     Import-PSSession $Session -AllowClobber > $null
 } Catch {
-    Write-Host "Access Denied..."
+    Write-Host "Access Denied..." -ForegroundColor Red
     Write-Host ""
     break;
 }
