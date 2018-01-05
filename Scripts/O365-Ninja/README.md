@@ -25,7 +25,7 @@ Import The Module
 	
 	PS C:\> Import-Module .\O365-Ninja.ps1
 
-Ensure that the user running this script is a member of the Discovery Management Exchange Security Group
+Ensure that the user running this script is a member of the "Discovery Management Exchange Security Group" and that "Search and Destroy" permissions are enabled.
     
     More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
 
