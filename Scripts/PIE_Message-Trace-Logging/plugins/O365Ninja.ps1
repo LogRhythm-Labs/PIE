@@ -12,12 +12,17 @@
 
 <#
 
-SYNOPSIS:
+.SYNOPSIS
     
     Collection of useful commands for easy integration with Office 365 and the LogRhythm SIEM.
     Automate the full response to phishing attacks, and dynamically 
 
-USAGE:
+.PREREQUISITE
+
+    Ensure that the user running this script is a member of the "Discovery Management Exchange Security Group" and that "Search and Destroy" permissions are enabled
+    More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
+
+.USAGE
 
     Capture A Specific Email:
     PS C:\> .\O365Ninja-SRP.ps1 -getMail -targetUser "<user.name>" -sender "<spammer>"
