@@ -2,9 +2,9 @@
     Phishing Intelligence Engine
     LogRhythm Security Operations
     greg . foss @ logrhythm . com
-    v1.0  --  November, 2017
+    v1.2  --  February, 2018
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2018 LogRhythm Inc.   
 
 This content is licensed pursuant to the [LogRhythm End User License Agreement](https://logrhythm.com/about/logrhythm-terms-and-conditions/)
 
@@ -21,6 +21,12 @@ These SmartResponse scripts are the automation arm of PIE. These are meant to be
 This SmartResponse is the SIEM integration of the [O365-Ninja.ps1](/Scripts/O365-Ninja/README.md) script, allowing for automation directly within the SIEM.
 
 ![O365-Ninja SmartResponse](/images/O365-Ninja-SmartResponse.png)
+
+Ensure that the user running this script is a member of the "Discovery Management Exchange Security Group" and that "Search and Destroy" permissions are enabled.
+    
+    More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
+
+![Mailbox Import Export](/images/Mailbox-Import-Export.png)
 
 #### 2) Spam-Tracker.lpi
 

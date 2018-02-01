@@ -29,6 +29,8 @@ Ensure that the user running this script is a member of the "Discovery Managemen
     
     More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
 
+![Mailbox Import Export](/images/Mailbox-Import-Export.png)
+
 
 ## [Usage]
 
