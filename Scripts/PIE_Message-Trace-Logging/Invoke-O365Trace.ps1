@@ -230,7 +230,16 @@ if ( $log -eq $true) {
     $phishTrace | Export-Csv $tmpLog -NoTypeInformation
     type $tmpLog | findstr -i $socMailbox >> $phishLog
     $reportPhish = type $tmpLog | findstr -i $socMailbox
-    $phishCount = Get-Content $tmpLog | findstr -i $socMailbox | Measure-Object –Line
+    #$phishCount = Get-Content $tmpLog | findstr -i $socMailbox | Measure-Object –Line
+
+    # Connect to local inbox and check for new mail
+    $outlookInbox = 6
+    $outlook = new-object -com outlook.application
+    $ns = $outlook.GetNameSpace("MAPI")
+    $rootFolders = $ns.Folders | ?{$_.Name -match $env:phishing}
+    $inbox = $ns.GetDefaultFolder($outlookInbox)
+    $messages = $inbox.items
+    $phishCount = $messages.count
 
     # Quick Subject line check for common tactics:
     if ( $subjectAutoQuarantine -eq $true ) {
@@ -269,22 +278,13 @@ if ( $log -eq $true) {
 
 
     # Analyze reported phishing messages, and scrape any other unreported messages
-    if ( $phishCount.Lines -gt 0 ) {
+    if ( $phishCount -gt 0 ) {
         
         # Set the initial Threat Score to 0 - increases as positive indicators for malware are observed during analysis
         $threatScore = 0
         
         # Track the user who reported the message
         $reportedBy = $reportPhish.Split(",")[2]; $reportedBy = $reportedBy.Split('"')[1]
-
-        # Attempt to Pull Message Contents and Attachment(s)
-        $outlookInbox = 6
-        $outlook = new-object -com outlook.application
-        $ns = $outlook.GetNameSpace("MAPI")
-        $rootFolders = $ns.Folders | ?{$_.Name -match $env:phishing}
-        $inbox = $ns.GetDefaultFolder($outlookInbox)
-        $messages = $inbox.items
-        $messcount = $messages.count
 
         # Extract reported messages
         foreach($message in $messages){
