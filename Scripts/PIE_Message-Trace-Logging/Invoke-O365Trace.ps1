@@ -410,7 +410,7 @@ if ( $log -eq $true) {
             $endUserLastName = $endUserName.Split(".")[1]
             $subjectQuery = "Subject:" + "'" + $subject + "'" + " Sent:" + $day
             $subjectQuery = "'" + $subjectQuery + "'"
-            $searchMailboxResults = Search-Mailbox $endUserName -SearchQuery $subjectQuery -TargetMailbox "phishing@logrhythm.com" -TargetFolder "PROCESSING" -LogLevel Full
+            $searchMailboxResults = Search-Mailbox $endUserName -SearchQuery $subjectQuery -TargetMailbox "$socMailbox" -TargetFolder "PROCESSING" -LogLevel Full
 
             <#
             $targetFolder = $searchMailboxResults.TargetFolder
