@@ -3,36 +3,36 @@
   #       Office 365 Ninja             #
   # LogRhythm Security Operations      #
   # greg . foss @ logrhythm . com      #
-  # v1.2  --  January, 2018            #
+  # v1.4  --  March, 2018              #
   #====================================#
 
-# Copyright 2017 LogRhythm Inc.   
+# Copyright 2018 LogRhythm Inc.   
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 function Invoke-O365Ninja {
 
-<#
+  <#
 
-.SYNOPSIS
+      .SYNOPSIS
     
-    Collection of useful commands for easy integration with Office 365 and the LogRhythm SIEM
-    Automate the full response to phishing attacks by dynamically blocking and quarantining delivered mail
+      Collection of useful commands for easy integration with Office 365 and the LogRhythm SIEM
+      Automate the full response to phishing attacks by dynamically blocking and quarantining delivered mail
 
-.USAGE
+      .USAGE
 
-    Run the following command for a list of options associated with this script:
+      Run the following command for a list of options associated with this script:
 
         PS C:\> Invoke-O365Ninja -help
 
-.PREREQUISITE
+      .PREREQUISITE
 
-    Ensure that the user running this script is a member of the "Discovery Management Exchange Security Group" and that "Search and Destroy" permissions are enabled
-    More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
+      Ensure that the user running this script is a member of the "Discovery Management Exchange Security Group" and that "Search and Destroy" permissions are enabled
+      More information: https://technet.microsoft.com/en-us/library/dd298059(v=exchg.160).aspx
 
-#>
+  #>
 
-[CmdLetBinding()]
-param( 
+  [CmdLetBinding()]
+  param( 
     [string]$username,
     [string]$password,
     [string]$encodedXMLCredentials,
@@ -41,6 +41,7 @@ param(
     [string]$caseAPItoken,
     [string]$caseNumber,
     [string]$targetUser,
+    [string]$targetMailbox,
     [string]$sender,
     [string]$recipient,
     [string]$subject,
@@ -55,10 +56,10 @@ param(
     [switch]$checkMemberships,
     [switch]$bypass,
     [switch]$nuke = $false
-)
+  )
 
 
-$banner = @"
+  $banner = @"
    ___ ____  __ ___   _  _ _       _      
   / _ \__ / / /| __| | \| (_)_ _  (_)__ _ 
  | (_) |_ \/ _ \__ \ | .' | | ' \ | / _' |
@@ -66,7 +67,7 @@ $banner = @"
                                 |__/      
 "@
 
-$usage = @"
+  $usage = @"
 USAGE:
 
     Capture A Specific Email:
@@ -120,60 +121,60 @@ USAGE:
         -LogRhythmHost, -caseAPIToken, -caseNumber (optional - if not supplied a new case will be created)
 "@
 
-if ( $help ) {
+  if ( $help ) {
 
     Write-Host $banner -ForegroundColor Green
     Write-Host $usage
     Write-Host ""
     break;
     
-}
+  }
 
 
-# ================================================================================
-# DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
-# ================================================================================
+  # ================================================================================
+  # DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
+  # ================================================================================
 
-# Mask errors
-$ErrorActionPreference = "silentlycontinue"
-$warningPreference = "silentlyContinue"
+  # Mask errors
+  $ErrorActionPreference = "silentlycontinue"
+  $warningPreference = "silentlyContinue"
 
-# date and time
-$today = "{0:MM-dd-yyyy}" -f (Get-Date).ToUniversalTime()
-$yesterday = "{0:MM-dd-yyyy}" -f ((Get-Date).ToUniversalTime()).AddDays(-1)
-$dayBefore = "{0:MM-dd-yyyy}" -f ((Get-Date).ToUniversalTime()).AddDays(-2)
+  # date and time
+  $today = "{0:MM-dd-yyyy}" -f (Get-Date).ToUniversalTime()
+  $yesterday = "{0:MM-dd-yyyy}" -f ((Get-Date).ToUniversalTime()).AddDays(-1)
+  $dayBefore = "{0:MM-dd-yyyy}" -f ((Get-Date).ToUniversalTime()).AddDays(-2)
 
-$date = (Get-Date).ToUniversalTime()
-$48Hours = ((Get-Date).ToUniversalTime()).AddHours(-48)
-$24Hours = ((Get-Date).ToUniversalTime()).AddHours(-24)
-$12Hours = ((Get-Date).ToUniversalTime()).AddHours(-12)
+  $date = (Get-Date).ToUniversalTime()
+  $48Hours = ((Get-Date).ToUniversalTime()).AddHours(-48)
+  $24Hours = ((Get-Date).ToUniversalTime()).AddHours(-24)
+  $12Hours = ((Get-Date).ToUniversalTime()).AddHours(-12)
 
-# folder structure and global parameters
-$companyDomain = $socMailbox.Split("@")[1]
-$currentFolder = (Get-Item -Path ".\" -Verbose).FullName
-$tmPIEfolder = "$currentFolder\TemporaryPIE\"
-mkdir $tmPIEfolder > $null
+  # folder structure and global parameters
+  $companyDomain = $socMailbox.Split("@")[1]
+  $currentFolder = (Get-Item -Path ".\" -Verbose).FullName
+  $tmPIEfolder = "$currentFolder\TemporaryPIE\"
+  mkdir $tmPIEfolder > $null
 
-$traceLog = "$tmPIEfolder\ongoing-trace-log.csv"
-$phishLog = "$tmPIEfolder\ongoing-phish-log.csv"
-$analysisLog = "$tmPIEfolder\analysis.csv"
-$tmpLog = "$tmPIEfolder\srp-tmp.csv"
-$tmpFolder = "$tmPIEfolder\tmp\"
+  $traceLog = "$tmPIEfolder\ongoing-trace-log.csv"
+  $phishLog = "$tmPIEfolder\ongoing-phish-log.csv"
+  $analysisLog = "$tmPIEfolder\analysis.csv"
+  $tmpLog = "$tmPIEfolder\srp-tmp.csv"
+  $tmpFolder = "$tmPIEfolder\tmp\"
 
-Write-Host $banner -ForegroundColor Green
-Write-Host ""
+  Write-Host $banner -ForegroundColor Green
+  Write-Host ""
 
-# ================================================================================
-# Office 365 API Authentication
-# ================================================================================
+  # ================================================================================
+  # Office 365 API Authentication
+  # ================================================================================
 
-if ( $encodedXMLCredentials ) {
+  if ( $encodedXMLCredentials ) {
 
-# XML Configuration - store credentials in an encoded XML file
-#     This file will need to be re-generated whenever your system reboots!
-#
-#     To generate the XML:
-#          PS C:\> Get-Credential | Export-Clixml Service-Account_cred.xml
+    # XML Configuration - store credentials in an encoded XML file
+    #     This file will need to be re-generated whenever your system reboots!
+    #
+    #     To generate the XML:
+    #          PS C:\> Get-Credential | Export-Clixml Service-Account_cred.xml
 
     $CredentialsFile = "$encodedXMLCredentials"
     try {
@@ -184,9 +185,9 @@ if ( $encodedXMLCredentials ) {
         Write-Error ("Could not find credentials file: " + $CredentialsFile)
         Break;
     }
-}
+  }
 
-try {
+  try {
     if (-Not ($password)) {
         $cred = Get-Credential
     } Else {
@@ -196,17 +197,17 @@ try {
 
     $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $cred -Authentication Basic -AllowRedirection
     Import-PSSession $Session -AllowClobber > $null
-} Catch {
+  } Catch {
     Write-Host "Access Denied..." -ForegroundColor Red
     Write-Host ""
     break;
-}
+  }
 
-# ================================================================================
-# TARGETED MAIL CAPTURE AND DELETION
-# ================================================================================
+  # ================================================================================
+  # TARGETED MAIL CAPTURE AND DELETION
+  # ================================================================================
 
-if ( $getMail ) {
+  if ( $getMail ) {
 
     if ( -Not $socMailbox ) {
         Write-Host "Target mailbox -socMailbox is required for this option" -ForegroundColor Red
@@ -240,10 +241,10 @@ if ( $getMail ) {
         Write-Host ""
         break;
     }
-}
+  }
 
 
-if ( $scrapeMail ) {
+  if ( $scrapeMail ) {
 
     if ( -Not $socMailbox ) {
         Write-Host "Target mailbox -socMailbox is required for this option" -ForegroundColor Red
@@ -281,7 +282,7 @@ if ( $scrapeMail ) {
         } else {
         
             type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder\recipients.txt
-            $messageCount = type $analysis | findstr -i $subject | Measure-Object | Select-Object Count | findstr -v "Count -"
+            $messageCount = type $analysisLog | findstr -i $subject | Measure-Object | Select-Object Count | findstr -v "Count -"
             $messageCount = $messageCount.Trim() -match "[0-9+]"
             $messageQuery1 = "Subject:" + '"' + $subject + '"' + " Sent:" + $today
             $messageQuery2 = "Subject:" + '"' + $subject + '"' + " Sent:" + $yesterday
@@ -430,19 +431,19 @@ if ( $scrapeMail ) {
 
     }
 
-}
+  }
 
 
-# ================================================================================
-# OFFICE365 ADMINISTRATIVE ACTIONS
-# ================================================================================
+  # ================================================================================
+  # OFFICE365 ADMINISTRATIVE ACTIONS
+  # ================================================================================
 
-if ( $resetPassword ) {
+  if ( $resetPassword ) {
 
     if ( $targetMailbox ) {
 
         $newPassword = ([System.Web.Security.Membership]::GeneratePassword(16,2))
-        Set-MsolUserPassword –UserPrincipalName $targetMailbox –NewPassword $newPassword -ForceChangePassword $True
+        Set-MsolUserPassword UserPrincipalName $targetMailbox NewPassword $newPassword -ForceChangePassword $True
         Write-Output "We've set the password for the account $targetMailbox to be $newPassword. Make sure you record this and share with the user, or be ready to reset the password again. They will have to reset their password on the next logon."
     
         #Set-MsolUser -UserPrincipalName $targetMailbox -StrongPasswordRequired $True
@@ -455,9 +456,9 @@ if ( $resetPassword ) {
         Write-Host "Target Mailbox Required ( -targetMailbox )" -ForegroundColor Red
         break;
     }
-}
+  }
 
-if ( $blockSender ) {
+  if ( $blockSender ) {
     
     if ( $sender ) {
 
@@ -529,9 +530,9 @@ if ( $blockSender ) {
         Write-Host "Sender Email Address Required ( -sender )" -ForegroundColor Red
         break;
     }
-}
+  }
 
-if ( $unblockSender ) {
+  if ( $unblockSender ) {
     
     if ( $sender ) {
 
@@ -546,7 +547,7 @@ if ( $unblockSender ) {
             
             try {
 
-                Set-MailboxJunkEmailConfiguration -Identity $phishRecipien -BlockedSendersAndDomains @{Remove="$sender"}
+                Set-MailboxJunkEmailConfiguration -Identity $phishRecipient -BlockedSendersAndDomains @{Remove="$sender"}
                 Write-Host "     [ + ] $recipient || $sender Unblocked Successfully" -ForegroundColor Cyan
                 Write-Host ""
                 break;
@@ -609,16 +610,16 @@ if ( $unblockSender ) {
         Write-Host "Sender Email Address Required ( -sender )" -ForegroundColor Red
         break;
     }
-}
+  }
 
-if ( $checkForwards ) {
+  if ( $checkForwards ) {
 
     Get-MailBox |?{$_.ForwardingAddress -ne $null}| Select-Object PrimarySmtpAddress,ForwardingAddress,ForwardingSmtpAddress,Office | Out-Gridview
     break;
 
-}
+  }
 
-if ( $checkMemberships ) {
+  if ( $checkMemberships ) {
 
     Get-UnifiedGroup | Sort-Object GroupMemberCount -Descending | Select-Object DisplayName,PrimarySmtpAddress,ManagedBy,GroupMemberCount,GroupExternalMemberCount,WhenCreated,WhenChanged,Notes | Out-GridView
     $Groups = Get-UnifiedGroup -Filter {GroupExternalMemberCount -gt 0}
@@ -640,14 +641,14 @@ if ( $checkMemberships ) {
 
     break;
 
-}
+  }
 
 
-# ================================================================================
-# LOGRHYTHM CASE MANAGEMENT
-# ================================================================================
+  # ================================================================================
+  # LOGRHYTHM CASE MANAGEMENT
+  # ================================================================================
 
-if ( $caseAPItoken ) {
+  if ( $caseAPItoken ) {
 
     Write-Host "LogRhythm Case Management"
     Write-Host "========================="
@@ -656,7 +657,7 @@ if ( $caseAPItoken ) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
     # Ignore invalid SSL certification warning
-add-type @"
+    add-type @"
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 public class TrustAllCertsPolicy : ICertificatePolicy {
@@ -811,12 +812,12 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 
     }
 
-}
+  }
 
 
-# clean up and clear all variables
-Remove-PSSession $Session
-Remove-Item $tmPIEfolder -Force -Recurse
-Get-Variable | Remove-Variable -EA 0
+  # clean up and clear all variables
+  Remove-PSSession $Session
+  Remove-Item $tmPIEfolder -Force -Recurse
+  Get-Variable | Remove-Variable -EA 0
 
 }

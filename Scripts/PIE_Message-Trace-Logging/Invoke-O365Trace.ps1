@@ -3,7 +3,7 @@
   # PIE - Phishing Intelligence Engine #
   # LogRhythm Security Operations      #
   # greg . foss @ logrhythm . com      #
-  # v1.1  --  February 2018            #
+  # v1.4  --  March 2018               #
   #====================================#
 
 # Copyright 2018 LogRhythm Inc.   
@@ -230,7 +230,7 @@ if ( $log -eq $true) {
     $phishTrace | Export-Csv $tmpLog -NoTypeInformation
     type $tmpLog | findstr -i $socMailbox >> $phishLog
     $reportPhish = type $tmpLog | findstr -i $socMailbox
-    #$phishCount = Get-Content $tmpLog | findstr -i $socMailbox | Measure-Object –Line
+    #$phishCount = Get-Content $tmpLog | findstr -i $socMailbox | Measure-Object Line
 
     # Connect to local inbox and check for new mail
     $outlookInbox = 6
@@ -268,9 +268,9 @@ if ( $log -eq $true) {
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$subjextQuarantineNote" -token $caseAPItoken
                 sleep 5
                 if ( $EncodedXMLCredentials ) {
-                    & $pieFolder\plugins\O365Ninja.ps1 -scrapeMail -sender "$spammer" -nuke -caseNumber $caseNumber -encodedXMLCredentials "$EncodedXMLCredentials" -socMailbox $socMailBox -LogRhythmHost $LogRhythmHost -caseAPItoken $caseAPItoken
+                    & $pieFolder\plugins\O365Ninja.ps1 -scrapeMail -sender "$spammer" -nuke -encodedXMLCredentials "$EncodedXMLCredentials" -socMailbox $socMailBox -LogRhythmHost $LogRhythmHost -caseAPItoken $caseAPItoken
                 } else {
-                    & $pieFolder\plugins\O365Ninja.ps1 -scrapeMail -sender "$spammer" -nuke -caseNumber $caseNumber -username $username -password $password -socMailbox $socMailBox -LogRhythmHost $LogRhythmHost -caseAPItoken $caseAPItoken
+                    & $pieFolder\plugins\O365Ninja.ps1 -scrapeMail -sender "$spammer" -nuke -username $username -password $password -socMailbox $socMailBox -LogRhythmHost $LogRhythmHost -caseAPItoken $caseAPItoken
                 }
             }
         }
@@ -609,15 +609,14 @@ Case Folder:                 $caseID
 
         # WRIKE
         if ( $wrike -eq $true ) {
-            $networkShare = "\\$hostname\cases\$caseID\"
 
-            $secOpsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case and Evidence folder: $networkShare"           
+            $secOpsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case and Evidence folder."           
 
             # Security Operations Contact(s)
             & $pieFolder\plugins\wrike.ps1 -newTask "Case $caseNumber - Phishing email from $spammer" -wrikeUserName $wrikeUser -wrikeFolderName $wrikeFolder -wrikeDescription $secOpsSummary -accessToken $wrikeAPI
             
             # Labs
-            $labsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case (https://usbo1plrwc01.schq.secious.com/cases/$caseNumber) and Evidence folder ($networkShare)"
+            $labsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case (https://usbo1plrwc01.schq.secious.com/cases/$caseNumber) and Evidence folder"
             & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Tasks Created in Wrike..." -token $caseAPItoken
 
         }
@@ -801,7 +800,7 @@ Case Folder:                 $caseID
                 $OpenDNSurl = "https://investigate.api.umbrella.com/domains/categorization/$splitLink`?showLabels"
                 $result = Invoke-RestMethod -Headers @{'Authorization' = "Bearer $openDNSkey"} -Uri $OpenDNSurl | ConvertTo-Json -Depth 4
                 $newresult = $result | ConvertFrom-Json
-                $score = $newresult.$query.status
+                $score = $newresult.$splitLink.status
 
                 if ($score -eq -1){
                     $OpenDNSStatus = "MALICIOUS DOMAIN - OpenDNS analysis determined $splitLink to be unsafe!"
