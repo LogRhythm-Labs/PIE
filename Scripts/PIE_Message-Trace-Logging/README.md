@@ -2,7 +2,7 @@
     Phishing Intelligence Engine
     LogRhythm Security Operations
     greg . foss @ logrhythm . com
-    v1.1  --  February, 2018
+    v1.2  --  April, 2018
 
 Copyright 2017 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
@@ -101,6 +101,18 @@ This script handles the message trace logging, dynamic analytics, and automated 
         ^"(?<session>[^"]*)","[^"]*","(?<sender>[^"]*)","(?<recipient>[^"]*)",(?:"<dip>")?,(?:"<sip>")?,(?:"(?<subject>.*?)")?,"(?<command>(?<status>[^"]*))","(?<size>\d*)"
 
 10) Import the PIE dashboards, and configure desired AIE alarms.
+
+## [Email Parsing Issues]
+
+If you run into problems with the PIE script parsing email, run the script manually, and check whether you receive an Outlook prompt like the one below:
+
+![Programmatic Access Error](/images/programmatic-access-error.png)
+
+Open Outlook and go to the "File/Options/Trust Center" menu item, and then click on the "Trust Center Settings" button at the right side of the dialog box. From there, select the "Programmatic Access" menu item and select "Never warn me about suspicious activity".
+
+![Programmatic Access Fix](/images/programmatic-access-fix.png)
+
+Please note, this is an added risk, so be sure that you are comfortable enabling this setting.  The error is being displayed due to a check for an antivirus application resident on the host. This is likely due to Microsoft not recognizing the solution that you have in place as a true Anti Virus even though it is likely providing sufficient protection.
 
 ## [API Integrations]
 
