@@ -79,6 +79,7 @@ $spammerList = "\\LOGRHYTHM-EMDB\list_import\Known-Spammer-Emails.txt"
 $pieFolder = "C:\PIE_INSTALL_FOLDER"
 
 
+
 # ================================================================================
 # Third Party Analytics
 # ================================================================================
@@ -96,6 +97,9 @@ $linkRegexCheck = $true
 $shortLink = $true
 $sucuri = $true
 $getLinkInfo = $true
+# Are 365 SafeLinks being used?
+# Note - Set to false by default
+$safeLinks = $true 
 
 # Domain Tools
 $domainTools = $false
@@ -325,9 +329,29 @@ if ( $log -eq $true) {
 
                     $getLinks = $msg.Body | findstr -i http
                     $null > "$tmpFolder\links.txt"
+                    
                     foreach ($link in $getLinks) {
-                            $link = @(@($link.Split("<")[1])).Split(">")[0]
-                            $link >> "$tmpFolder\links.txt"
+
+                        $link = @(@($link.Split("<")[1])).Split(">")[0]
+
+                        if ($safeLinks -eq $true) {
+                        
+                            [string[]] $urlParts = $link.Split("?")[1]
+                            [string[]] $linkParams = $urlParts.Split("&")
+
+                            for ($n=0; $n -lt $linkParams.Length; $n++) {
+                        
+                                [string[]] $namVal = $linkParams[$n].Split("=")
+                        
+                                if($namVal[0] -eq "url") {
+                        
+                                    $encodedLink = $namVal[1]
+                                    break
+                                }
+                            }
+                            $link = [System.Web.HttpUtility]::UrlDecode($encodedLink)
+                        }
+                        $link >> "$tmpFolder\links.txt"
                     }
 
                     $links = type "$tmpFolder\links.txt" | Sort -Unique
