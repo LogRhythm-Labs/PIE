@@ -616,7 +616,7 @@ Case Folder:                 $caseID
             & $pieFolder\plugins\wrike.ps1 -newTask "Case $caseNumber - Phishing email from $spammer" -wrikeUserName $wrikeUser -wrikeFolderName $wrikeFolder -wrikeDescription $secOpsSummary -accessToken $wrikeAPI
             
             # Labs
-            $labsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case (https://usbo1plrwc01.schq.secious.com/cases/$caseNumber) and Evidence folder"
+            $labsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case (https://$LogRhythmHost/cases/$caseNumber) and Evidence folder"
             & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Tasks Created in Wrike..." -token $caseAPItoken
 
         }
