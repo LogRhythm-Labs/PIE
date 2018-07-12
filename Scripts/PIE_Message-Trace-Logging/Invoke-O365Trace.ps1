@@ -98,8 +98,7 @@ $shortLink = $true
 $sucuri = $true
 $getLinkInfo = $true
 # Are 365 SafeLinks being used?
-# Note - Set to false by default
-$safeLinks = $true 
+$safeLinks = $false
 
 # Domain Tools
 $domainTools = $false
