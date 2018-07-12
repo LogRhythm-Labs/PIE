@@ -329,6 +329,8 @@ if ( $log -eq $true) {
                     $getLinks = $msg.Body | findstr -i http
                     $null > "$tmpFolder\links.txt"
                     
+                    [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
+                    
                     foreach ($link in $getLinks) {
 
                         $link = @(@($link.Split("<")[1])).Split(">")[0]
