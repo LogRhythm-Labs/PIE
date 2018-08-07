@@ -39,7 +39,6 @@ $banner = @"
 # Mask errors
 $ErrorActionPreference= 'silentlycontinue'
 
-
 # ================================================================================
 # DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
 #
@@ -70,8 +69,8 @@ if ( $PlainText ) {
 # Mailbox where Phishing emails will be reported
 $socMailbox = "SOC MAILBOX ADDRESS"
 
-# LogRhythm Case API Integration
-$LogRhythmHost = "LOGRHYTHM-IP:PORT"
+# LogRhythm Case API Integration - 7.3.X
+$LogRhythmHost = "LOGRHYTHM-CaseAPI-IP:8501"
 $caseAPItoken = "LOGRHYTHM CASE API TOKEN"
 $spammerList = "\\LOGRHYTHM-EMDB\list_import\Known-Spammer-Emails.txt"
 
@@ -98,7 +97,7 @@ $shortLink = $true
 $sucuri = $true
 $getLinkInfo = $true
 # Are 365 SafeLinks being used?
-$safeLinks = $false
+$safeLinks = $false 
 
 # Domain Tools
 $domainTools = $false
@@ -204,9 +203,8 @@ try {
         $securePass = ConvertTo-SecureString -string $password -AsPlainText -Force
         $cred = New-Object -typename System.Management.Automation.PSCredential -argumentlist $username, $securePass
     }
-
     $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $cred -Authentication Basic -AllowRedirection
-    Import-PSSession $Session -AllowClobber
+    Import-PSSession $Session -AllowClobber -Verbose
 } Catch {
     Write-Error "Access Denied..."
     Break;
@@ -234,7 +232,6 @@ if ( $log -eq $true) {
     type $tmpLog | findstr -i $socMailbox >> $phishLog
     $reportPhish = type $tmpLog | findstr -i $socMailbox
     #$phishCount = Get-Content $tmpLog | findstr -i $socMailbox | Measure-Object Line
-
     # Connect to local inbox and check for new mail
     $outlookInbox = 6
     $outlook = new-object -com outlook.application
@@ -328,31 +325,30 @@ if ( $log -eq $true) {
 
                     $getLinks = $msg.Body | findstr -i http
                     $null > "$tmpFolder\links.txt"
-                    
+
                     [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
-                    
                     foreach ($link in $getLinks) {
 
-                        $link = @(@($link.Split("<")[1])).Split(">")[0]
+                            $link = @(@($link.Split("<")[1])).Split(">")[0]
 
-                        if ($safeLinks -eq $true) {
-                        
-                            [string[]] $urlParts = $link.Split("?")[1]
-                            [string[]] $linkParams = $urlParts.Split("&")
+                            if ($safeLinks -eq $true) {
+                            
+                                [string[]] $urlParts = $link.Split("?")[1]
+                                [string[]] $linkParams = $urlParts.Split("&")
 
-                            for ($n=0; $n -lt $linkParams.Length; $n++) {
-                        
-                                [string[]] $namVal = $linkParams[$n].Split("=")
-                        
-                                if($namVal[0] -eq "url") {
-                        
-                                    $encodedLink = $namVal[1]
-                                    break
+                                for ($n=0; $n -lt $linkParams.Length; $n++) {
+                            
+                                    [string[]] $namVal = $linkParams[$n].Split("=")
+                            
+                                    if($namVal[0] -eq "url") {
+                            
+                                        $encodedLink = $namVal[1]
+                                        break
+                                    }
                                 }
+                                $link = [System.Web.HttpUtility]::UrlDecode($encodedLink)
                             }
-                            $link = [System.Web.HttpUtility]::UrlDecode($encodedLink)
-                        }
-                        $link >> "$tmpFolder\links.txt"
+                            $link >> "$tmpFolder\links.txt"
                     }
 
                     $links = type "$tmpFolder\links.txt" | Sort -Unique
@@ -664,7 +660,7 @@ Case Folder:                 $caseID
             
             $links | ForEach-Object { 
                 $splitLink = $_.Split(":") | findstr -v http
-
+                
                 $linkInfo = iwr http://www.getlinkinfo.com/info?link=$_
                 $isItSafe = $linkInfo.RawContent | findstr unsafe
                 if ( $isItSafe ) {
@@ -731,7 +727,9 @@ Case Folder:                 $caseID
                     
                 $sucuriLink = "https://sitecheck.sucuri.net/results/$splitLink"
                 $sucuriAnalysis = iwr https://sitecheck.sucuri.net/results/$splitLink
-
+                Write-Host "a"
+                Write-Host $securiAnalysis.Content
+                Write-Host "b"
                 $isitblacklisted = $sucuriAnalysis.Content | findstr blacklisted
                 $isitcompromised = $sucuriAnalysis.Content | findstr -i compromised
 
