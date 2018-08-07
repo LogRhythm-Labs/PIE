@@ -52,9 +52,9 @@ $date = Get-Date
 #Arguments
 Write-Host "Host: $lrhost"
 Write-Host "Cmd: $command"
+
 function get_case{
     param ( [int]$casenum)
-
     Write-Host "Get Case: URL: $geturl"
     $geturl = $caseurl + "number/$casenum"
     #execute curl POST to auth url with creds (see above)
@@ -67,7 +67,6 @@ return $caseid
 
 function create_case{
     param( [string]$name, [int]$priority)
-
     Write-Host "Create Case."
     Write-Host "URL:: $caseURL"
     Write-Host "Name: $name"
@@ -136,7 +135,7 @@ return
 }
 
 $token = "Bearer $token"
-$caseURL = "https://$lrhost/api/cases/"
+$caseURL = "https://$lrhost/lr-case-api/cases/"
 
 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
 $headers.Add("Content-type", "application/json")
