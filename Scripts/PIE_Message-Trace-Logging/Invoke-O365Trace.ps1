@@ -624,13 +624,11 @@ Case Folder:                 $caseID
         if ( $caseCollaborators -ne "" ) {
             for ($n=0; $n -lt $caseCollaborators.Length; $n++) {
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_collaborator -casenum $caseNumber -collaborator $caseCollaborators[$n] -token $caseAPItoken
-                Write-Host "$pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_collaborator -casenum $caseNumber -collaborator $caseCollaborators -token $caseAPItoken"
             }
         }
 
         if ( $caseOwner -ne "" ) {
             & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command set_owner -casenum $caseNumber -owner $caseOwner -token $caseAPItoken
-            Write-Host "& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command set_owner -casenum $caseNumber -owner $caseOwner -token $caseAPItoken"
         }
 
         # Copy raw logs to case
