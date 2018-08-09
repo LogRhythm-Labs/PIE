@@ -77,6 +77,12 @@ $spammerList = "\\LOGRHYTHM-EMDB\list_import\Known-Spammer-Emails.txt"
 # Case Folders and Logging
 $pieFolder = "C:\PIE_INSTALL_FOLDER"
 
+# Case management and ownership
+# FYI - This component of the API by LR is listed as unstable and subject to change.
+# This function requires the users ID# to function currently.    
+$caseCollaborators = @('52','12')
+# Note the case Owner ID must be present within the caseCollaborators.
+$caseOwner = "52"
 
 
 # ================================================================================
@@ -614,6 +620,19 @@ Case Folder:                 $caseID
         echo "Case URL:    $caseURL" >> "$caseFolder$caseID\spam-report.txt"
         echo "" >> "$caseFolder$caseID\spam-report.txt"
 
+        # Assign case owner to case
+        if ( $caseCollaborators -ne "" ) {
+            for ($n=0; $n -lt $caseCollaborators.Length; $n++) {
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_collaborator -casenum $caseNumber -collaborator $caseCollaborators[$n] -token $caseAPItoken
+                Write-Host "$pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_collaborator -casenum $caseNumber -collaborator $caseCollaborators -token $caseAPItoken"
+            }
+        }
+
+        if ( $caseOwner -ne "" ) {
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command set_owner -casenum $caseNumber -owner $caseOwner -token $caseAPItoken
+            Write-Host "& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command set_owner -casenum $caseNumber -owner $caseOwner -token $caseAPItoken"
+        }
+
         # Copy raw logs to case
         $caseNote = type $analysisLog
         $caseNote = $caseNote -replace '"', ""
@@ -662,7 +681,9 @@ Case Folder:                 $caseID
                 $splitLink = $_.Split(":") | findstr -v http
                 
                 $linkInfo = iwr http://www.getlinkinfo.com/info?link=$_
-                $isItSafe = $linkInfo.RawContent | findstr unsafe
+                $linkInfo.RawContent | Out-File $tmpFolder\linkInfo.txt
+                $isItSafe = Get-Content $tmpFolder\linkInfo.txt | Select-String -Pattern '((?![0]).) unsafe\)*'
+#                $isItSafe = $linkInfo.RawContent | findstr unsafe
                 if ( $isItSafe ) {
                     $getLinkInfoStatus = "UNSAFE LINK DETECTED (hxxp:$splitLink)! More Information: http://www.getlinkinfo.com/info?link=$_"
                     $threatScore += 1
@@ -727,9 +748,6 @@ Case Folder:                 $caseID
                     
                 $sucuriLink = "https://sitecheck.sucuri.net/results/$splitLink"
                 $sucuriAnalysis = iwr https://sitecheck.sucuri.net/results/$splitLink
-                Write-Host "a"
-                Write-Host $securiAnalysis.Content
-                Write-Host "b"
                 $isitblacklisted = $sucuriAnalysis.Content | findstr blacklisted
                 $isitcompromised = $sucuriAnalysis.Content | findstr -i compromised
 
