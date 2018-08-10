@@ -620,13 +620,14 @@ Case Folder:                 $caseID
         echo "Case URL:    $caseURL" >> "$caseFolder$caseID\spam-report.txt"
         echo "" >> "$caseFolder$caseID\spam-report.txt"
 
-        # Assign case owner to case
+        # Assign case collaborators to case
         if ( $caseCollaborators -ne "" ) {
             for ($n=0; $n -lt $caseCollaborators.Length; $n++) {
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_collaborator -casenum $caseNumber -collaborator $caseCollaborators[$n] -token $caseAPItoken
             }
         }
 
+        # Assign case owner to case
         if ( $caseOwner -ne "" ) {
             & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command set_owner -casenum $caseNumber -owner $caseOwner -token $caseAPItoken
         }
@@ -746,14 +747,23 @@ Case Folder:                 $caseID
                     
                 $sucuriLink = "https://sitecheck.sucuri.net/results/$splitLink"
                 $sucuriAnalysis = iwr https://sitecheck.sucuri.net/results/$splitLink
-                $isitblacklisted = $sucuriAnalysis.Content | findstr blacklisted
-                $isitcompromised = $sucuriAnalysis.Content | findstr -i compromised
+                $sucuriAnalysis.RawContent | Out-File $tmpFolder\sucuriAnalysis.txt
+                $isitblacklisted = Get-Content $tmpFolder\sucuriAnalysis.txt | Select-String -Pattern 'Site is not Blacklisted'
+                $isitcompromised = Get-Content $tmpFolder\sucuriAnalysis.txt | Select-String -Pattern 'No Malware Found'
+                #$isitblacklisted = $sucuriAnalysis.Content | findstr blacklisted
+                #$isitcompromised = $sucuriAnalysis.Content | findstr -i compromised
 
-                if ( $isitblacklisted ) {
-                    $sucuriStatus = "MALICIOUS LINK! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
+                if ( !$isitblacklisted ) {
+                    $sucuriStatus = "BLACKLISTED LINK! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
+                } 
+                if ( !$isitcompromised ) {
+                    $sucuriStatus = "MALWARE DETECTED! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
+                    $threatScore += 1
+
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken                    
                 } else {
                     $sucuriStatus = "Sucuri has determined this link is clean. Full details available here: $sucuriLink."
 
