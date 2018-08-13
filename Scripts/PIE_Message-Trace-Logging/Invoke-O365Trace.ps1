@@ -746,20 +746,21 @@ Case Folder:                 $caseID
                 $splitLink = ([System.Uri]"$_").Host
                     
                 $sucuriLink = "https://sitecheck.sucuri.net/results/$splitLink"
-                $sucuriAnalysis = iwr https://sitecheck.sucuri.net/results/$splitLink
+                $sucuriAnalysis = iwr "https://sitecheck.sucuri.net/api/v2/?scan=$splitLink&json"
                 $sucuriAnalysis.RawContent | Out-File $tmpFolder\sucuriAnalysis.txt
-                $isitblacklisted = Get-Content $tmpFolder\sucuriAnalysis.txt | Select-String -Pattern 'Site is not Blacklisted'
-                $isitcompromised = Get-Content $tmpFolder\sucuriAnalysis.txt | Select-String -Pattern 'No Malware Found'
+                $sucuriResults = Get-Content $tmpFolder\sucuriAnalysis.txt | select -Skip 12 | ConvertFrom-Json
+                $isitblacklisted = $sucuriResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Blacklist'
+                $isitcompromised = $sucuriResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Websitemalware'
                 #$isitblacklisted = $sucuriAnalysis.Content | findstr blacklisted
                 #$isitcompromised = $sucuriAnalysis.Content | findstr -i compromised
 
-                if ( !$isitblacklisted ) {
+                if ( $isitblacklisted.BLACKLIST -eq $true ) {
                     $sucuriStatus = "BLACKLISTED LINK! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
                 } 
-                if ( !$isitcompromised ) {
+                if ( $isitcompromised.WEBSITEMALWARE -eq $true ) {
                     $sucuriStatus = "MALWARE DETECTED! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
 
