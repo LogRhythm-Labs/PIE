@@ -16,16 +16,24 @@ $shodanAPI = "duh deh deh deh deh duh duh duh dah duh"
 if ( $shodan -eq $true ) {
 
     $links | ForEach-Object {
-        $splitLink = ([System.Uri]"$_").Host
-          
-        $shodanIPQuery = iwr "https://api.shodan.io/dns/resolve?hostnames=$splitLink&key=$shodanAPI"
+        #$splitLink = ([System.Uri]"$_").Host
+        $splitLink = $links
+        $shodanIPQuery = iwr "https://api.shodan.io/dns/resolve?hostnames=$splitLink&key=$shodanAPI" -UseBasicParsing
         $shodanIPQuery.RawContent | Out-File .\shodanIPQuery.txt
         $shodanIPInfo = Get-Content .\shodanIPQuery.txt | select -Skip 14 | ConvertFrom-Json
         $shodanIP = $shodanIPInfo.$splitLink
-        $shodanHostInfo = iwr "https://api.shodan.io/shodan/host/$shodanIP`?key=$shodanAPI"
+        $shodanHostLookup = iwr "https://api.shodan.io/shodan/host/$shodanIP`?key=$shodanAPI" -UseBasicParsing
+        $shodanHostLookup.RawContent | Out-File .\shodanHost.txt
+        $shodanHostInfo = (Get-Content .\shodanHost.txt) | select -Skip 14 | ConvertFrom-Json
+        $shodanScanDate = $shodanHostInfo.last_update
+        $shodanCountry = $shodanHostInfo.country_name
+        $shodanCity = $shodanHostInfo.city
+        $shodanPorts = $shodanHostInfo.ports
+        $shodanCert1 = $shodanHostInfo.data | Select-Object -ExpandProperty ssl
+
 ######## VOID #######
-        $isitblacklisted = $shodanResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Blacklist'
-        $isitcompromised = $shodanResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Websitemalware'
+ #       $isitblacklisted = $shodanResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Blacklist'
+ #       $isitcompromised = $shodanResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Websitemalware'
         #$isitblacklisted = $shodanAnalysis.Content | findstr blacklisted
         #$isitcompromised = $shodanAnalysis.Content | findstr -i compromised
 
@@ -33,24 +41,24 @@ if ( $shodan -eq $true ) {
             $shodanStatus = "BLACKLISTED LINK! shodan has flagged this host: $splitLink. Full details available here: $shodanLink."
             $threatScore += 1
 
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+        #    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
         } 
         if ( $isitcompromised.WEBSITEMALWARE -eq $true ) {
             $shodanStatus = "MALWARE DETECTED! shodan has flagged this host: $splitLink. Full details available here: $shodanLink."
             $threatScore += 1
 
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
+         #   & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
         } else {
             $shodanStatus = "shodan has determined this link is clean. Full details available here: $shodanLink."
 
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+          #  & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
         }
 
-        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-        echo "" >> "$caseFolder$caseID\spam-report.txt"
-        echo "shodan Status:" >> "$caseFolder$caseID\spam-report.txt"
-        echo "" >> "$caseFolder$caseID\spam-report.txt"
-        echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
-        echo "" >> "$caseFolder$caseID\spam-report.txt"
+  #      echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+  #      echo "" >> "$caseFolder$caseID\spam-report.txt"
+  #      echo "shodan Status:" >> "$caseFolder$caseID\spam-report.txt"
+  #      echo "" >> "$caseFolder$caseID\spam-report.txt"
+  #      echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
+  #      echo "" >> "$caseFolder$caseID\spam-report.txt"
     }
 }
