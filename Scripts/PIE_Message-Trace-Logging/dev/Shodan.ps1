@@ -20,11 +20,13 @@ if ( $shodan -eq $true ) {
     $links | ForEach-Object {
         #$splitLink = ([System.Uri]"$_").Host
         $splitLink = $links
+        #Query Shodan DNS.  Required for Shodan Host scan.
         $shodanIPQuery = iwr "https://api.shodan.io/dns/resolve?hostnames=$splitLink&key=$shodanAPI"
         $shodanIPQuery.RawContent | Out-File .\shodanIPQuery.txt
         $shodanIPInfo = Get-Content .\shodanIPQuery.txt | select -Skip 14 | ConvertFrom-Json
         $shodanIP = $shodanIPInfo.$splitLink
         $shodanLink = "https://www.shodan.io/host/$shodanIP"
+        #Query Shodan Host scan.
         $shodanHostLookup = iwr "https://api.shodan.io/shodan/host/$shodanIP`?key=$shodanAPI"
         $shodanHostLookup.RawContent | Out-File .\shodanHost.txt
         $shodanHostInfo = (Get-Content .\shodanHost.txt) | select -Skip 14 | ConvertFrom-Json
@@ -32,7 +34,10 @@ if ( $shodan -eq $true ) {
         $shodanCountry = $shodanHostInfo.country_name
         $shodanCity = $shodanHostInfo.city
         $shodanPorts = $shodanHostInfo.ports
+        $shodanTags = $shodanHostInfo.data | Select-Object -ExpandProperty tags -Unique
+        #Determine if HTTPS services identified.
         $shodanModules = $shodanHostInfo.data | Select-Object -ExpandProperty _shodan | Select-Object -ExpandProperty module
+        #If HTTPS identified populate associated variables.
         if ( $shodanModules -imatch "https" ) {
             $shodanSSL = $true
             $shodanCert1 = $shodanHostInfo.data | Select-Object -ExpandProperty ssl
@@ -62,10 +67,12 @@ if ( $shodan -eq $true ) {
             #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
         }
         #Provide additional forensic evidence to case.
-        
         $shodanStatus = "Shodan identifies $splitLink`:$shodanIP.`nReported location:`n Country: $shodanCountry`n City: $shodanCity."
         if ( $shodanSSL -eq $true ) {
             $shodanStatus += "`n`nCertificate Authority: $shodanCertIssuer.`nExpires on: $shodanCertExpiration"
+        }
+        if ( $shodanTags ) {
+            $shodanStatus += "`nDetected tags: $shodanTags"
         }
         $shodanStatus += "`nLast scanned on $shodanScanDate."
         
