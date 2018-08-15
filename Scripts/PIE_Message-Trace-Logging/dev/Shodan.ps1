@@ -2,8 +2,9 @@
 # Early development of Shodan integration for PIE.  Exploritory to identify potential areas of evidence collection and risk assessment acceleration.
 #   
 # Goals:
-# <in-progress> - Collect additional evidence on link.  Geographic location, IP address, Certificate Authority & expiration.
-# <complete>  - Initially groom to find LetsEncrypt Self-Registration certificates.  This may be a point to increase threatScore.
+# <complete> - Collect additional evidence on link.  Geographic location, IP address, Certificate Authority & expiration.
+# <complete> - Report self-signed certificates.
+# <complete> - Initially groom to find LetsEncrypt Self-Registration certificates.  This may be a point to increase threatScore.
 # <incomplete> Explore examination of services running on host.  Example, if identifying tor/tftp/ftp or other file delivery services found in conjuction with HTTP/HTTPS, increase threatScore.
 #
 # Mask errors
@@ -31,8 +32,12 @@ if ( $shodan -eq $true ) {
         $shodanHostLookup.RawContent | Out-File .\shodanHost.txt
         $shodanHostInfo = (Get-Content .\shodanHost.txt) | select -Skip 14 | ConvertFrom-Json
         $shodanScanDate = $shodanHostInfo.last_update
+        #Location Information
         $shodanCountry = $shodanHostInfo.country_name
+        $shodanRegion = $shodanHostInfo.region_code
         $shodanCity = $shodanHostInfo.city
+        $shodanPostal = $shodanHostInfo.postal_code
+        #Service Information
         $shodanPorts = $shodanHostInfo.ports
         $shodanTags = $shodanHostInfo.data | Select-Object -ExpandProperty tags -Unique
         #Determine if HTTPS services identified.
@@ -52,28 +57,33 @@ if ( $shodan -eq $true ) {
         }
         if ( $shodanCert1.cert.expired -eq $true ) {
             $shodanStatus = "EXPIRED CERTIFICATE! Shodan has reported $splitLink has expired certificates. Last scanned on $shodanScanDate.  Full details available here: $shodanLink."
+            Write-Host $shodanStatus
             $threatScore += 1
 
             & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
         } 
         if ( $shodanCertIssuer -imatch "Let's Encrypt" ) {
             $shodanStatus = "RISKY CERTIFICATE AUTHORITY DETECTED! Shodan has reported $splitLink's CA as Let's Encrypt. Full details available here: $shodanLink."
+            Write-Host $shodanStatus
             $threatScore += 1
 
             #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
-        } else {
-            $shodanStatus = "Shodan scan identifies no additional risks. Full details available here: $shodanLink."
+        } elseif ( $shodanTags -imatch "self-signed" ) {
+            $shodanStatus = "SELF SIGNED CERTIFICATE DETECTED! Shodan has reported $splitLink's certificates as self-signed. Full details available here: $shodanLink."
             Write-Host $shodanStatus
-            #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
-        }
+            $threatScore += 1
+
+            #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken       
+        } 
         #Provide additional forensic evidence to case.
-        $shodanStatus = "Shodan identifies $splitLink`:$shodanIP.`nReported location:`n Country: $shodanCountry`n City: $shodanCity."
-        if ( $shodanSSL -eq $true ) {
-            $shodanStatus += "`n`nCertificate Authority: $shodanCertIssuer.`nExpires on: $shodanCertExpiration"
-        }
-        if ( $shodanTags ) {
-            $shodanStatus += "`nDetected tags: $shodanTags"
-        }
+        #Build location string
+        $shodanStatus = "Shodan identifies $splitLink`:$shodanIP.`nReported location:`n Country: $shodanCountry"
+        if ( $shodanCity ) { $shodanStatus += "`n City: $shodanCity" } 
+        if ( $shodanRegion ) { $shodanStatus += "`n Region: $shodanRegion" }
+        if ( $shodanPostal ) { $shodanStatus += "`n Postal: $shodanPostal" }
+        #Append Certificate information
+        if ( $shodanSSL -eq $true ) { $shodanStatus += "`n`nCertificate Authority: $shodanCertIssuer.`nExpires on: $shodanCertExpiration" }
+        if ( $shodanTags ) { $shodanStatus += "`nDetected tags: $shodanTags" }
         $shodanStatus += "`nLast scanned on $shodanScanDate."
         
         Write-Host $shodanStatus
