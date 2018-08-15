@@ -32,10 +32,19 @@ if ( $shodan -eq $true ) {
         $shodanCountry = $shodanHostInfo.country_name
         $shodanCity = $shodanHostInfo.city
         $shodanPorts = $shodanHostInfo.ports
-        $shodanCert1 = $shodanHostInfo.data | Select-Object -ExpandProperty ssl
-        $shodanCertIssuer = $shodanCert1.cert.issuer.CN
-        $shodanCertExpiration = $shodanCert1.cert.expires
-
+        $shodanModules = $shodanHostInfo.data | Select-Object -ExpandProperty _shodan | Select-Object -ExpandProperty module
+        if ( $shodanModules -imatch "https" ) {
+            $shodanSSL = $true
+            $shodanCert1 = $shodanHostInfo.data | Select-Object -ExpandProperty ssl
+            $shodanCertIssuer = $shodanCert1.cert.issuer.CN
+            $shodanCertExpiration = $shodanCert1.cert.expires
+        } else {
+            Write-Host "Scanned host does not run any HTTPS services."
+            $shodanSSL = $false
+            $shodanCert1 = $null
+            $shodanCertIssuer = $null
+            $shodanCertExpiration = $null
+        }
         if ( $shodanCert1.cert.expired -eq $true ) {
             $shodanStatus = "EXPIRED CERTIFICATE! Shodan has reported $splitLink has expired certificates. Last scanned on $shodanScanDate.  Full details available here: $shodanLink."
             $threatScore += 1
@@ -46,22 +55,29 @@ if ( $shodan -eq $true ) {
             $shodanStatus = "RISKY CERTIFICATE AUTHORITY DETECTED! Shodan has reported $splitLink's CA as Let's Encrypt. Full details available here: $shodanLink."
             $threatScore += 1
 
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
+            #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
         } else {
             $shodanStatus = "Shodan scan identifies no additional risks. Full details available here: $shodanLink."
-
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+            Write-Host $shodanStatus
+            #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
         }
         #Provide additional forensic evidence to case.
-        $shodanStatus = "Shodan identifies $splitLink`:$shodanIP.`nReported location:`n Country: $shodanCountry`n City: $shodanCity.`n`nCertificate Authority: $shodanCertIssuer.`nExpires on: $shodanCertExpiration`nLast scanned on $shodanScanDate."
-        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+        
+        $shodanStatus = "Shodan identifies $splitLink`:$shodanIP.`nReported location:`n Country: $shodanCountry`n City: $shodanCity."
+        if ( $shodanSSL -eq $true ) {
+            $shodanStatus += "`n`nCertificate Authority: $shodanCertIssuer.`nExpires on: $shodanCertExpiration"
+        }
+        $shodanStatus += "`nLast scanned on $shodanScanDate."
+        
+        Write-Host $shodanStatus
+        #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
 
-        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-        echo "" >> "$caseFolder$caseID\spam-report.txt"
-        echo "shodan Status:" >> "$caseFolder$caseID\spam-report.txt"
-        echo "" >> "$caseFolder$caseID\spam-report.txt"
-        echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
-        echo "" >> "$caseFolder$caseID\spam-report.txt"
+        #echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+        #echo "" >> "$caseFolder$caseID\spam-report.txt"
+        #echo "shodan Status:" >> "$caseFolder$caseID\spam-report.txt"
+        #echo "" >> "$caseFolder$caseID\spam-report.txt"
+        #echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
+        #echo "" >> "$caseFolder$caseID\spam-report.txt"
         #Cleanup temporary files.
         Remove-Item -path .\shodan*.txt
     }
