@@ -141,6 +141,10 @@ $wrikeAPI = ""
 $wrikeFolder = ""
 $wrikeUser = ""
 
+# Shodan.io
+$shodan = $false
+$shodanAPI = ""
+
 # ================================================================================
 # END GLOBAL PARAMETERS
 # ************************* DO NOT EDIT BELOW THIS LINE *************************
@@ -684,10 +688,10 @@ Case Folder:                 $caseID
                 $isItSafe = Get-Content $tmpFolder\linkInfo.txt | Select-String -Pattern '((?![0]).) unsafe\)*'
 #                $isItSafe = $linkInfo.RawContent | findstr unsafe
                 if ( $isItSafe ) {
-                    $getLinkInfoStatus = "UNSAFE LINK DETECTED (hxxp:$splitLink)! More Information: http://www.getlinkinfo.com/info?link=$_"
+                    $getLinkInfoStatus = "====RISK - LINKINFO====\r\nUNSAFE LINK DETECTED (hxxp:$splitLink)! More Information: http://www.getlinkinfo.com/info?link=$_"
                     $threatScore += 1
                 } else {
-                    $getLinkInfoStatus = "Link (hxxp:$splitLink) is considered low risk. More Information: http://www.getlinkinfo.com/info?link=$_"
+                    $getLinkInfoStatus = "====INFO - LINKINFO====\r\nLink (hxxp:$splitLink) is considered low risk. More Information: http://www.getlinkinfo.com/info?link=$_"
                 }
 
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$getLinkInfoStatus" -token $caseAPItoken
@@ -698,6 +702,7 @@ Case Folder:                 $caseID
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
                 echo $getLinkInfoStatus >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
+                Remove-Item -path $tmpFolder\linkInfo.txt
             }
         }
 
@@ -722,9 +727,9 @@ Case Folder:                 $caseID
                 $phishTankDetails = $phishTankDetails.Split("]")[0]
 
                 if ( $phishTankStatus -eq "false" ) {
-                    $phishTankStatus = "Link (hxxp:$splitLink) is not present in the PhishTank Database."
+                    $phishTankStatus = "====INFO - PHISHTANK====\r\nLink (hxxp:$splitLink) is not present in the PhishTank Database."
                 } elseif ( $phishTankStatus -eq "true" ) {
-                    $phishTankStatus = "MALICIOUS LINK (hxxp:$splitLink) was found in the PhishTank Database! More Information: $phishTankDetails"
+                    $phishTankStatus = "====RISK - PHISHTANK====\r\nMALICIOUS LINK (hxxp:$splitLink) was found in the PhishTank Database! More Information: $phishTankDetails"
                     $threatScore += 1
                 }
 
@@ -755,18 +760,18 @@ Case Folder:                 $caseID
                 #$isitcompromised = $sucuriAnalysis.Content | findstr -i compromised
 
                 if ( $isitblacklisted.BLACKLIST -eq $true ) {
-                    $sucuriStatus = "BLACKLISTED LINK! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
+                    $sucuriStatus = "====RISK - SUCURI====\r\nBLACKLISTED LINK! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
                 } 
                 if ( $isitcompromised.WEBSITEMALWARE -eq $true ) {
-                    $sucuriStatus = "MALWARE DETECTED! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
+                    $sucuriStatus = "====RISK - SUCURI====\r\nMALWARE DETECTED! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken                    
                 } else {
-                    $sucuriStatus = "Sucuri has determined this link is clean. Full details available here: $sucuriLink."
+                    $sucuriStatus = "====INFO - SUCURI====\r\nSucuri has determined this link is clean. Full details available here: $sucuriLink."
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
                 }
@@ -777,6 +782,7 @@ Case Folder:                 $caseID
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
                 echo $sucuriStatus >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
+                Remove-Item -path $tmpFolder\sucuri*.txt
             }
         }
 
@@ -810,10 +816,10 @@ Case Folder:                 $caseID
                     if ( $createdDate ) {
 
                         if($threshold -le $createdDate){
-                            $domainToolsUpdate = "DomainTools: Domain ($domain) is less than 3-months old - likely malicious! Registered on $createdDate. Threat Score Elevated."
+                            $domainToolsUpdate = "====RISK - DOMAINTOOLS====\r\nDomain ($domain) is less than 3-months old - likely malicious! Registered on $createdDate. Threat Score Elevated."
                             $threatScore += 1
                         }else{
-                            $domainToolsUpdate = "DomainTools: Domain ($domain) has been registered since $createdDate - low risk"
+                            $domainToolsUpdate = "====INFO - DOMAINTOOLS====\r\nDomain ($domain) has been registered since $createdDate - low risk"
                         }
 
                     } else {
@@ -821,10 +827,10 @@ Case Folder:                 $caseID
                         $registrationTime = $domainDetails.response.history.registrar.earliest_event
 
                         if($threshold -le $registrationTime){
-                            $domainToolsUpdate = "DomainTools: Domain is less than 3-months old - likely malicious! Registered on $registrationTime. Threat Score Elevated."
+                            $domainToolsUpdate = "====RISK - DOMAINTOOLS====\r\nDomain is less than 3-months old - likely malicious! Registered on $registrationTime. Threat Score Elevated."
                             $threatScore += 1
                         }else{
-                            $domainToolsUpdate = "DomainTools: Domain has been registered since $registrationTime - low risk"
+                            $domainToolsUpdate = "====INFO - DOMAINTOOLS====\r\n Domain has been registered since $registrationTime - low risk"
                         }
                     }
                 }
@@ -853,12 +859,12 @@ Case Folder:                 $caseID
                 $score = $newresult.$splitLink.status
 
                 if ($score -eq -1){
-                    $OpenDNSStatus = "MALICIOUS DOMAIN - OpenDNS analysis determined $splitLink to be unsafe!"
+                    $OpenDNSStatus = "====RISK - OPENDNS====\r\nMALICIOUS DOMAIN - OpenDNS analysis determined $splitLink to be unsafe!"
                     $threatScore += 1
                 }elseif ($score -eq 0) {
                     $OpenDNSStatus = "OpenDNS - Uncategorized Domain: $splitLink"
                 } elseif ($score -eq 1) {
-                    $OpenDNSStatus = "OpenDNS - Benign Domain: $splitLink"
+                    $OpenDNSStatus = "====INFO - OPENDNS====\r\nBenign Domain: $splitLink"
                 }
 
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$OpenDNSStatus" -token $caseAPItoken
@@ -964,10 +970,10 @@ Case Folder:                 $caseID
                     $VTPositives = [int]$VTPositives
 
                     if ( $VTPositives -lt 1 ) {
-                        $VTStatus = "VirusTotal has not flagged this link (hxxp:$splitLink) as malicious."
+                        $VTStatus = "====INFO - VIRUS TOTAL====\r\nVirusTotal has not flagged this link (hxxp:$splitLink) as malicious."
                     
                     } elseif ( $VTPositives -gt 0 ) {
-                        $VTStatus = "MALICIOUS LINK DETECTED by VirusTotal (hxxp:$splitLink)! This sample has been flagged by $VTPositives Anti Virus engines. More information: $VTLink"
+                        $VTStatus = "====RISK - VIRUS TOTAL====\r\nMALICIOUS LINK DETECTED by VirusTotal (hxxp:$splitLink)! This sample has been flagged by $VTPositives Anti Virus engines. More information: $VTLink"
                         $threatScore += $VTPositives
                     }
 
@@ -999,7 +1005,7 @@ Case Folder:                 $caseID
 
                     $splitLink = $expandedLink.Split(":") | findstr -v http
 
-                    $shortLinkStatus = "Shortened Link Detected! Metrics: $_+. Redirect: hxxp:$splitLink"
+                    $shortLinkStatus = "====INFO - SHORT LINK====\r\nShortened Link Detected! Metrics: $_+. Redirect: hxxp:$splitLink"
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shortLinkStatus" -token $caseAPItoken
                 }
@@ -1011,7 +1017,7 @@ Case Folder:                 $caseID
                     #$expandedLink = ($shortLinkContent.Content | findstr -i long_url).Split('"') | findstr -i "http https" | unique
                     #$splitLink = $expandedLink.Split(":") | findstr -v http
 
-                    $shortLinkStatus = "Shortened Link Detected! Metrics: $_+."
+                    $shortLinkStatus = "====SHORT LINK INFO====\r\nShortened Link Detected! Metrics: $_+."
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shortLinkStatus" -token $caseAPItoken
                 }
@@ -1019,7 +1025,7 @@ Case Folder:                 $caseID
                 if ( $_ -match "http://x.co" ) {
 
                     $splitLink = $_.Split(":") | findstr -v http
-                    $shortLinkStatus = "Machine Learning analysis has detected a possibly malicious link hxxp:$_."
+                    $shortLinkStatus = "====RISK - SHORT LINK====\r\nMachine Learning analysis has detected a possibly malicious link hxxp:$_."
                     $threatScore += 1
 
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shortLinkStatus" -token $caseAPItoken
@@ -1104,7 +1110,7 @@ Case Folder:                 $caseID
                 $splitLink = $_.Split(":") | findstr -v http
 
                 If([string]$_ -match ($linkRegexList -join "|")) {
-                    $regExCheckStatus = "UNSAFE LINK DETECTED (hxxp:$splitLink)! Positive RegEx match - possibly malicious."
+                    $regExCheckStatus = "====PIE REGEX HIT====\r\nUNSAFE LINK DETECTED (hxxp:$splitLink)! Positive RegEx match - possibly malicious."
                     $threatScore += 1
                 } else {
                     Write-Host "No RegEx matches for (hxxp:$splitLink) - likely benign."
@@ -1126,7 +1132,7 @@ Case Folder:                 $caseID
 
             if ( $files ) {
                 # Update Case
-                $caseNote = "The collected files are now being analyzed for risk using Cisco AMP Threat Grid..."
+                $caseNote = "====INFO - THREAT GRID====\r\nThe collected files are now being analyzed for risk using Cisco AMP Threat Grid..."
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$caseNote" -token $caseAPItoken
                 
                 $allAttachments = ls "$tmpFolder\attachments\"
@@ -1136,7 +1142,7 @@ Case Folder:                 $caseID
             
             } elseif ( $countLinks -gt 0 ) {
                 # Update Case
-                $caseNote = "The collected links are now being analyzed for risk using Cisco AMP Threat Grid..."
+                $caseNote = "====INFO - THREAT GRID====\r\nThe collected links are now being analyzed for risk using Cisco AMP Threat Grid..."
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$caseNote" -token $caseAPItoken
 
                 $links | ForEach-Object { 
@@ -1144,7 +1150,7 @@ Case Folder:                 $caseID
                 }
             } else {
                 # Nothing to do
-                $caseNote = "No content for Cisco AMP Threat Grid to analyze..."
+                $caseNote = "====INFO - THREAT GRID====\r\nNo content for Cisco AMP Threat Grid to analyze..."
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$caseNote" -token $caseAPItoken
             }
 
@@ -1152,8 +1158,88 @@ Case Folder:                 $caseID
             #$threatGridRisk = "HIGH RISK"
             #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "ThreatGRID Analysis Score: $threatGridScore ($threatGridRisk)" -token $caseAPItoken
         }
-
         
+        if ( $shodan -eq $true ) {
+
+            $links | ForEach-Object {
+                $splitURL = ([System.Uri]"$_").Host -replace "www\."
+                #Query Shodan DNS.  Required for Shodan Host scan.
+                $shodanIPQuery = iwr "https://api.shodan.io/dns/resolve?hostnames=$splitURL&key=$shodanAPI"
+                $shodanIPQuery.RawContent | Out-File $tmpFolder\shodanIPQuery.txt
+                $shodanIPInfo = Get-Content $tmpFolder\shodanIPQuery.txt | select -Skip 14 | ConvertFrom-Json
+                $shodanIP = $shodanIPInfo.$splitURL
+                $shodanLink = "https://www.shodan.io/host/$shodanIP"
+                #Query Shodan Host scan.
+                $shodanHostLookup = iwr "https://api.shodan.io/shodan/host/$shodanIP`?key=$shodanAPI"
+                $shodanHostLookup.RawContent | Out-File $tmpFolder\shodanHost.txt
+                $shodanHostInfo = (Get-Content $tmpFolder\shodanHost.txt) | select -Skip 14 | ConvertFrom-Json
+                $shodanScanDate = $shodanHostInfo.last_update
+                #Location Information
+                $shodanCountry = $shodanHostInfo.country_name
+                $shodanRegion = $shodanHostInfo.region_code
+                $shodanCity = $shodanHostInfo.city
+                $shodanPostal = $shodanHostInfo.postal_code
+                #Service Information
+                $shodanPorts = $shodanHostInfo.ports
+                $shodanTags = $shodanHostInfo.data | Select-Object -ExpandProperty tags -Unique
+                #Determine if HTTPS services identified.
+                $shodanModules = $shodanHostInfo.data | Select-Object -ExpandProperty _shodan | Select-Object -ExpandProperty module
+                #If HTTPS identified populate associated variables.
+                if ( $shodanModules -imatch "https" ) {
+                    $shodanSSL = $true
+                    $shodanCert1 = $shodanHostInfo.data | Select-Object -ExpandProperty ssl
+                    $shodanCertIssuer = $shodanCert1.cert.issuer.CN
+                    $shodanCertExpiration = $shodanCert1.cert.expires
+                } else {
+                    $shodanSSL = $false
+                    $shodanCert1 = $null
+                    $shodanCertIssuer = $null
+                    $shodanCertExpiration = $null
+                }
+                if ( $shodanCert1.cert.expired -eq $true ) {
+                    $shodanStatus = "====RISK - SHODAN====\r\nEXPIRED CERTIFICATE! Shodan has reported $splitLink has expired certificates. Last scanned on $shodanScanDate.  Full details available here: $shodanLink."
+                    $threatScore += 1
+
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+                } 
+                if ( $shodanCertIssuer -imatch "Let's Encrypt" ) {
+                    $shodanStatus = "====RISK - SHODAN====\r\nRISKY CERTIFICATE AUTHORITY DETECTED! Shodan has reported $splitLink's CA as Let's Encrypt. Full details available here: $shodanLink."
+                    $threatScore += 1
+
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
+                } elseif ( $shodanTags -imatch "self-signed" ) {
+                    $shodanStatus = "====RISK - SHODAN====\r\nSELF SIGNED CERTIFICATE DETECTED! Shodan has reported $splitLink's certificates as self-signed. Full details available here: $shodanLink."
+                    Write-Host $shodanStatus
+                    $threatScore += 1
+
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken       
+                } 
+                #Provide additional forensic evidence to case.
+                #Build location string
+                $shodanStatus = "====INFO - SHODAN====\r\nInformation on $splitURL`:$shodanIP.\r\nReported location:\r\n Country: $shodanCountry"
+                if ( $shodanCity ) { $shodanStatus += "\r\n City: $shodanCity" } 
+                if ( $shodanRegion ) { $shodanStatus += "\r\n Region: $shodanRegion" }
+                if ( $shodanPostal ) { $shodanStatus += "\r\n Postal: $shodanPostal" }
+                #Append Certificate information
+                if ( $shodanSSL -eq $true ) { $shodanStatus += "\r\nCertificate Authority: $shodanCertIssuer.\r\nExpires on: $shodanCertExpiration" }
+                if ( $shodanTags ) { $shodanStatus += "\r\nDetected tags: $shodanTags" }
+                $shodanStatus += "\r\nLast scanned on $shodanScanDate."
+        
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+
+                echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+                echo "" >> "$caseFolder$caseID\spam-report.txt"
+                echo "shodan Status:" >> "$caseFolder$caseID\spam-report.txt"
+                echo "" >> "$caseFolder$caseID\spam-report.txt"
+                echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
+                echo "" >> "$caseFolder$caseID\spam-report.txt"
+                #Cleanup temporary files.
+                Remove-Item -path $tmpFolder\shodan*.txt
+                #Shodan API limit of 1 lookup per second
+                sleep 1
+            }
+        }
+		
         # ADD SPAMMER TO LIST
         if ( $spammerList ) {
             if ( $threatScore -gt $threatThreshold ) {
