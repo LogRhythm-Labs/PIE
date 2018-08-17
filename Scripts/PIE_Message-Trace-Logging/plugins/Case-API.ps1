@@ -24,7 +24,9 @@ param(
     [string]$note,
     [string]$summary,
     [int]$priority,
-    [Parameter(Mandatory=$True)] [string]$token
+    [Parameter(Mandatory=$True)] [string]$token,
+    [string]$collaborator,
+    [string]$owner
 )
 
 $caseFolder = "C:\PIE_INSTALL_FOLDER\plugins"
@@ -52,9 +54,9 @@ $date = Get-Date
 #Arguments
 Write-Host "Host: $lrhost"
 Write-Host "Cmd: $command"
+
 function get_case{
     param ( [int]$casenum)
-
     Write-Host "Get Case: URL: $geturl"
     $geturl = $caseurl + "number/$casenum"
     #execute curl POST to auth url with creds (see above)
@@ -67,7 +69,6 @@ return $caseid
 
 function create_case{
     param( [string]$name, [int]$priority)
-
     Write-Host "Create Case."
     Write-Host "URL:: $caseURL"
     Write-Host "Name: $name"
@@ -135,8 +136,38 @@ function incident{
 return
 }
 
+function add_collaborator{
+    param([int]$casenum)
+
+    $caseid = get_case $casenum
+
+    $incidenturl = $caseurl + $caseid + "/actions/addCollaborators"
+
+    Write-Host "Adding collaborator: $collaborator"
+    $payload = "{ `"numbers`": `[$collaborator`] }"
+
+    Invoke-RestMethod -uri $incidenturl -headers $headers -Method PUT -body $payload
+
+return
+}
+
+function set_owner{
+    param([int]$casenum)
+
+    $caseid = get_case $casenum
+
+    $incidenturl = $caseurl + $caseid + "/actions/changeOwner"
+
+    Write-Host "Setting case owner: $owner"
+    $payload = "{ `"number`": $owner }"
+
+    Invoke-RestMethod -uri $incidenturl -headers $headers -Method PUT -body $payload
+
+return
+}
+
 $token = "Bearer $token"
-$caseURL = "https://$lrhost/api/cases/"
+$caseURL = "https://$lrhost/lr-case-api/cases/"
 
 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
 $headers.Add("Content-type", "application/json")
@@ -176,6 +207,28 @@ elseif($command -eq "incident"){
     elseif ($casenum -ne 0){
         Write-Host "Marking case $casenum as incident"
         incident $casenum
+        exit 0
+        }
+    }
+elseif($command -eq "add_collaborator"){
+    if ($casenum -eq 0){
+        Write-Error "Please specify case id."
+        exit 1
+        }
+    elseif ($casenum -ne 0 -and $collaborator -ne ""){
+        Write-Host "Adding collaborators for case $casenum"
+        add_collaborator $casenum
+        exit 0
+        }
+    }
+elseif($command -eq "set_owner"){
+    if ($casenum -eq 0){
+        Write-Error "Please specify case id."
+        exit 1
+        }
+    elseif ($casenum -ne 0 -and $owner -ne ""){
+        Write-Host "Setting case owner for case $casenum"
+        set_owner $casenum
         exit 0
         }
     }
