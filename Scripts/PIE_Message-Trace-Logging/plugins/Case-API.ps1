@@ -1,185 +1,330 @@
-﻿<#
+﻿
+#====================================#
+#       Case API - 7.3.x             #
+# LogRhythm Security Operations      #
+# greg . foss @ logrhythm . com      #
+# v1.0  --  August, 2018             #
+#====================================#
 
-LogRhythm Engineering
-matt . willems [at] logrhythm.com
-
-# Copyright 2017 LogRhythm Inc.   
+# Copyright 2018 LogRhythm Inc.   
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-Usage:
-lrcase.ps1 -lrhost <host:port> -command <command> <arg1> <arg2>
+# ================================================================================
+# LogRhythm Case Management
+# ================================================================================
 
-Commands:
-    create_case -priority <1-5> -note <case title>
-    add_note -casenum <case ID> -note <note to add>
-    incident -casenum <case ID>
-#>
+param ( [string]$lrhost,
+        [string]$token,
+        [string]$summary,
+        [string]$createCase,
+        [string]$updateCase,
+        [string]$addTag,
+        [string]$removeTag,
+        [string]$addCaseUser,
+        [string]$removeCaseUser,
+        [string]$changeCaseOwner,
+        [string]$attachFile,
+        [string]$note,
+        [string]$tagNumber,
+        [string]$caseNum,
+        [string]$priority,
+        [switch]$getCases,
+        [switch]$listTags )
 
-[CmdLetBinding()]
-param(
 
-    [Parameter(Mandatory=$True)] [string]$lrhost,
-    [Parameter(Mandatory=$True)] [string]$command,
-    [int]$casenum,
-    [string]$note,
-    [string]$summary,
-    [int]$priority,
-    [Parameter(Mandatory=$True)] [string]$token
-)
+# ================================================================================
+# EDIT THE CASE FOLDER LINE BELOW
+# ================================================================================
 
-$caseFolder = "C:\PIE_INSTALL_FOLDER\plugins"
+$caseFolder = "C:\PIE\Install\Directory\plugins"
+
+##################################################################################
+
+
+# ================================================================================
+# Global Parameters
+# ================================================================================
+
+# Mask errors
+$ErrorActionPreference= 'silentlycontinue'
+
+$apiKey = "Bearer $token"
+$caseURL = "https://$lrhost/lr-case-api/cases"
+$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+$headers.Add("Content-type", "application/json")
+$headers.Add("Authorization", $apiKey)
+$headers.Add("Count", "100000")
+    
+if (-Not ($summary)) { $summary = "API Generated Case" }
+if (-Not ($priority)) { $priority = "3" }
 
 #force TLS v1.2 required by caseAPI
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 #Ignore invalid SSL certification warning
 add-type @"
-    using System.Net;
-    using System.Security.Cryptography.X509Certificates;
-    public class TrustAllCertsPolicy : ICertificatePolicy {
-        public bool CheckValidationResult(
-            ServicePoint srvPoint, X509Certificate certificate,
-            WebRequest request, int certificateProblem) {
-            return true;
-        }
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+    public bool CheckValidationResult(
+        ServicePoint srvPoint, X509Certificate certificate,
+        WebRequest request, int certificateProblem) {
+        return true;
     }
+}
 "@
 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+
+
+# ================================================================================
+# Situational Awareness
+# ================================================================================
 
 #Get the date/time
 $date = Get-Date
 
-#Arguments
-Write-Host "Host: $lrhost"
-Write-Host "Cmd: $command"
-function get_case{
-    param ( [int]$casenum)
-
-    Write-Host "Get Case: URL: $geturl"
-    $geturl = $caseurl + "number/$casenum"
-    #execute curl POST to auth url with creds (see above)
-    $output = Invoke-RestMethod -Method GET -Headers $headers -Uri $geturl 
-
-    $caseid = $output.id
-    Write-Host "Case ID: $caseid"
-return $caseid
+# Get Case Information
+if ( $getCases ) {
+    $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+    $output | Select-Object * | Out-GridView
 }
 
-function create_case{
-    param( [string]$name, [int]$priority)
-
-    Write-Host "Create Case."
-    Write-Host "URL:: $caseURL"
-    Write-Host "Name: $name"
-    Write-Host "Pri:: $priority"
-    Write-Host "Summary:: $summary"
-
-    $payload = "{ `"name`": `"$name`", `"priority`": $priority, `"summary`": `"$summary`" }"
-    $output = Invoke-RestMethod -uri $caseurl -headers $headers -Method POST -body $payload
-
-    $caseid = $output.number
-return $caseid
-echo $caseid > "$caseFolder\case.txt"
+# Get List of Available Tags
+if ( $listTags ) {
+    $tagUrl = "https://$lrhost/lr-case-api/tags/"
+    $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET
+    $output | Sort-Object number | Out-GridView
 }
 
-function make_folder{
-    param ( [int]$casenum)
 
-    $arm = "C:\Program Files\LogRhythm\LogRhythm Alarming and Response Manager"
-    $casedir = $arm + "\case"
-    if (Test-Path $casedir) {
-        Write-Host "Case root path exists."
-        }
-    else{
-        Write-Host "Case path does not exist."
-        New-Item $casedir -type Directory
-        }
-    $casedir = $casedir + "\" + $casenum
-    Try {
-        New-Item $casedir -type Directory
-        }
-    Catch {
-        Write-Error "Unable to create case path"
-        Break
-        }
+# ================================================================================
+# Create Case
+# ================================================================================    
 
-return $casedir
+if ($createCase ) {
+
+    # REST Web Request
+    $payload = "{ `"name`": `"$createCase`", `"priority`": $priority, `"summary`": `"$summary`" }"
+    $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method POST -Body $payload
+        
+    # Capture Case ID for Later Usage
+    $caseNum = $output.number
+        
+    echo $caseNum > "$caseFolder\case.txt"
 }
 
-function add_note{
-    param([int]$casenum, [string]$note)
 
-    $noteurl = $caseurl + "number/$casenum/evidence/note"
-    Write-Host "Note URL: $noteurl"
+# ================================================================================
+# Update Case
+# ================================================================================
 
-    $payload = "{ `"text`": `"$note`" }"
-    Write-Host "Json: $payload"
+if ( $updateCase ) {
+    if ( $caseNum ) {
 
-    Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload
+        # Update the Case
+        $noteurl = $caseurl + "/number/$caseNum/evidence/note"
 
-return
+        # REST Web Request
+        $payload = "{ `"text`": `"$updateCase`" }"
+        $output = Invoke-RestMethod -Uri $noteurl -Headers $headers -Method POST -Body $payload
+    }
 }
 
-function incident{
-    param([int]$casenum)
 
-    $caseid = get_case $casenum
+# ================================================================================
+# Add Tags
+# ================================================================================
 
-    $incidenturl = $caseurl + $caseid + "/actions/changeStatus"
+if ( $addTag ) {
+    if ( $caseNum ) {
 
-    Write-Host "URL: $incidenturl"
-    $payload = '{ "statusName": "Incident" }'
+        # Find Tag
+        $tagUrl = "https://$lrhost/lr-case-api/tags/"
+        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET
+        $tagNumber = @($output | Select-Object number, text | Where-Object text -EQ "$addTag").number
 
-    Invoke-RestMethod -uri $incidenturl -headers $headers -Method PUT -body $payload
+        if ( $tagNumber ) {
 
-return
+             # Find Case UUID
+            $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+            $output2 = $output | Select-Object number, id | Where-Object number -EQ $caseNum
+            $caseUUID = $output2.id
+
+            # Tag the case
+            $tagUrl = $caseUrl + "/$caseUUID/actions/addTags"
+
+            # REST Web Request
+            $payload = "{ `"numbers`": `[$tagNumber`] }"
+            $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload
+
+        }       
+    }
 }
 
-$token = "Bearer $token"
-$caseURL = "https://$lrhost/api/cases/"
 
-$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-$headers.Add("Content-type", "application/json")
-$headers.Add("Authorization", $token)
+# ================================================================================
+# Remove Tags
+# ================================================================================
 
-if($command -eq "create_case"){
-    if ($priority -eq 0 -or $note -eq ""){
-        Write-Error "Priority and note must be set."
-        exit 0
-        }
-    elseif ($priority -ne 0 -and $note -ne ""){
-        Write-Host "Creating a new case."
-        $casenum = create_case $note $priority
-        Write-Host "Case ID: $casenum"
-        $casedir = make_folder $casenum
-        Write-Host "Case Directory: $casedir"
-        echo $casenum > "$caseFolder\case.txt"
-        exit 1
+if ( $removeTag ) {
+    if ( $caseNumber ) {
+                
+        # Find Tag
+        $tagUrl = "https://$lrhost/lr-case-api/tags/"
+        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET
+        $tagNumber = @($output | Select-Object number, text | Where-Object text -EQ "$removeTag").number
+            
+        if ( $tagNumber ) {
+            
+            # Find Case UUID
+            $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+            $output = $output | Select-Object number, id | Where-Object number -EQ $caseNumber
+            $caseUUID = $output.id
+
+            # Tag the case
+            $tagUrl = $caseUrl + "/$caseUUID/actions/removeTags"
+
+            # REST Web Request
+            $payload = "{ `"numbers`": `[$tagNumber`] }"
+            $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload
+
         }
     }
-elseif($command -eq "add_note"){
-    if ($casenum -eq 0 -or $note -eq "") {
-        Write-Error "Case Number/ID and Note must be set."
-        exit 1
-        }
-    elseif ($casenum -ne 0 -and $note -ne ""){
-        Write-Host "Adding note to case."
-        add_note $casenum $note
-        exit 0
-        }
+}
+
+# ================================================================================
+# Add User to Case
+# ================================================================================
+
+if ( $addCaseUser ) {
+    if ( $caseNum ) {
+
+        # User Lookup
+        $userLookup = "https://$lrhost/lr-case-api/persons/"
+        $output = Invoke-RestMethod -Uri $userLookup -Headers $headers -Method GET
+        $userNumber = @($output | Where-Object name -eq "$addCaseUser" | Select-Object number).number
+
+        # Find Case UUID
+        $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+        $output = $output | Select-Object number, id | Where-Object number -EQ $caseNum
+        $caseUUID = $output.id
+
+        # Add Case User
+        $userQuery = $caseURL + "/$caseUUID/actions/addCollaborators/"
+
+        # REST Web Request
+        $payload = "{ `"numbers`": `[$userNumber`] }"
+        $output = Invoke-RestMethod -Uri $userQuery -Headers $headers -Method PUT -Body $payload
+
     }
-elseif($command -eq "incident"){
-    if ($casenum -eq 0){
-        Write-Error "Please specify case id."
-        exit 1
-        }
-    elseif ($casenum -ne 0){
-        Write-Host "Marking case $casenum as incident"
-        incident $casenum
-        exit 0
-        }
+}
+
+
+# ================================================================================
+# Remove User From Case
+# ================================================================================
+
+if ( $removeCaseUser ) {
+    if ( $caseNum ) {
+
+        # User Lookup
+        $userLookup = "https://$lrhost/lr-case-api/persons/"
+        $output = Invoke-RestMethod -Uri $userLookup -Headers $headers -Method GET
+        $userNumber = @($output | Where-Object name -eq "$removeCaseUser" | Select-Object number).number
+            
+        # Find Case UUID
+        $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+        $output = $output | Select-Object number, id | Where-Object number -EQ $caseNum
+        $caseUUID = $output.id
+
+        # Add Case User
+        $userQuery = $caseURL + "/$caseUUID/actions/removeCollaborators/"
+
+        # REST Web Request
+        $payload = "{ `"numbers`": `[$userNumber`] }"
+        $output = Invoke-RestMethod -Uri $userQuery -Headers $headers -Method PUT -Body $payload
+        
     }
-else{
-    Write-Error "Unknown command. Try create_case or add_note"
-    exit 0
+}
+
+    
+# ================================================================================
+# Change Case Owner
+# ================================================================================
+
+if ( $changeCaseOwner ) {
+    if ( $caseNum ) {
+
+        # User Lookup
+        $userLookup = "https://$lrhost/lr-case-api/persons/"
+        $output = Invoke-RestMethod -Uri $userLookup -Headers $headers -Method GET
+        $userNumber = @($output | Where-Object name -eq "$changeCaseOwner" | Select-Object number).number
+            
+        # Find Case UUID
+        $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+        $output = $output | Select-Object number, id | Where-Object number -EQ $caseNum
+        $caseUUID = $output.id
+
+        # Add Case User
+        $userUpdate = $caseURL + "/$caseUUID/actions/changeOwner/"
+
+        # REST Web Request
+        $payload = "{ `"number`": $userNumber }"
+        $output = Invoke-RestMethod -Uri $userUpdate -Headers $headers -Method PUT -Body $payload
+        
     }
+}
+
+
+# ================================================================================
+# Attach File ----- CURRENTLY BROKEN -----
+# ================================================================================
+
+if ( $attachFile ) {
+    if ( $note ) {
+        if ( $caseNum ) {
+
+            # Find Case UUID
+            $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+            $output = $output | Select-Object number, id | Where-Object number -EQ $caseNum
+            $caseUUID = $output.id
+
+            # Reset Headers and Attach File
+            #$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+            #$headers.Add("Content-type", "application/x-www-form-urlencoded")
+            #$headers.Add("Authorization", $token)
+            $attachmentUrl = $caseURL + "/$caseUUID/evidence/file"
+
+            <#Parameters that are submitted through a form.
+            application/x-www-form-urlencoded, multipart/form-data or both are usually
+            used as the content type of the request#>
+
+            $FileContent = [IO.File]::ReadAllText('C:\Users\greg.foss_sup\Desktop\scripts\test.txt');
+            #$FileContent = [IO.File]::ReadAllBytes('C:\Users\greg.foss_sup\Desktop\scripts\test.txt');
+            #$Fields = @{'appInfo'='{"name": "test","description": "test"}';'uploadFile'=$FileContent};
+
+            $payload = @{"appInfo"="{ `"note`": `"$note`", `"file`": `"$fileContent`" }";'uploadFile'=$FileContent}
+            #$payload = "{ `"file`": `"$FileContent`", `"note`": `"$note`" }"
+            $output = Invoke-RestMethod -Uri $attachmentUrl -Headers $headers -Method POST -Body $payload -ContentType "multipart/form-data"
+            
+        }  
+    }
+}
+
+
+# ================================================================================
+# Template
+# ================================================================================
+
+if ( $asdf ) {
+    if ( $caseNum ) {
+
+        # REST Web Request
+        $payload = "{ `"text`": `"$updateCase`" }"
+        $output = Invoke-RestMethod -Uri $noteurl -Headers $headers -Method POST -Body $payload
+        
+    }
+}
+
+# Clear all variables
+Get-Variable | Remove-Variable -EA 0

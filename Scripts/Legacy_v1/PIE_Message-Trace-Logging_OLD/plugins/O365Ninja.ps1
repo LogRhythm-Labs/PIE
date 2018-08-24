@@ -4,10 +4,10 @@
   #       Office 365 Ninja             #
   # LogRhythm Security Operations      #
   # greg . foss @ logrhythm . com      #
-  # v2.0  --  August, 2018             #
+  # v1.0  --  August, 2017             #
   #====================================#
 
-# Copyright 2018 LogRhythm Inc.   
+# Copyright 2017 LogRhythm Inc.   
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 <#
@@ -15,7 +15,7 @@
 .SYNOPSIS
     
     Collection of useful commands for easy integration with Office 365 and the LogRhythm SIEM.
-    Automate the full response to phishing attacks, and dynamically.
+    Automate the full response to phishing attacks, and dynamically 
 
 .PREREQUISITE
 
@@ -84,7 +84,7 @@ param(
 
 
 $banner = @"
-O365 Ninja - Catching the phish..."@
+O365 Ninja"@
 
 $usage = @"
 USAGE:
@@ -514,7 +514,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
     $token = "Bearer $caseAPItoken"
-    $caseURL = "https://$LogRhythmHost/lr-case-api/cases/"
+    $caseURL = "https://$LogRhythmHost/api/cases/"
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
     $headers.Add("Content-type", "application/json")
     $headers.Add("Authorization", $token)

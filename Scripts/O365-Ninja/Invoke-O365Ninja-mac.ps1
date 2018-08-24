@@ -1,10 +1,10 @@
 ﻿
-  #====================================#
-  #       Office 365 Ninja             #
-  # LogRhythm Security Operations      #
-  # greg . foss @ logrhythm . com      #
-  # v2.0  --  August, 2018             #
-  #====================================#
+#====================================#
+#    Office 365 Ninja - OS X         #
+# LogRhythm Security Operations      #
+# greg . foss @ logrhythm . com      #
+# v2.0  --  August, 2018             #
+#====================================#
 
 # Copyright 2018 LogRhythm Inc.   
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
@@ -22,7 +22,7 @@ USAGE:
 
     Run the following command for a list of options associated with this script:
 
-        PS C:\> Invoke-O365Ninja -help
+        PS /> Invoke-O365Ninja -help
 
 #>
 
@@ -61,10 +61,10 @@ param(
 
 
 $banner = @"
-   ___ ____  __ ___   _  _ _       _      
-  / _ \__ / / /| __| | \| (_)_ _  (_)__ _ 
- | (_) |_ \/ _ \__ \ | .' | | ' \ | / _' |
-  \___/___/\___/___/ |_|\_|_|_||_|/ \__,_|
+     ___ ____  __ ___   _  _ _       _      
+    / _ \__ / / /| __| | \| (_)_ _  (_)__ _ 
+    | (_) |_ \/ _ \__ \ | .' | | ' \ | / _' |
+    \___/___/\___/___/ |_|\_|_|_||_|/ \__,_|  OSX
                                 |__/      
 "@
 
@@ -161,15 +161,15 @@ $12Hours = ((Get-Date).ToUniversalTime()).AddHours(-12)
 
 # folder structure and global parameters
 $companyDomain = $socMailbox.Split("@")[1]
-$currentFolder = (Get-Item -Path ".\" -Verbose).FullName
-$tmPIEfolder = "$currentFolder\TemporaryPIE\"
+$currentFolder = (Get-Item -Path "./" -Verbose).FullName
+$tmPIEfolder = "$currentFolder/TemporaryPIE/"
 mkdir $tmPIEfolder > $null
 
-$traceLog = "$tmPIEfolder\ongoing-trace-log.csv"
-$phishLog = "$tmPIEfolder\ongoing-phish-log.csv"
-$analysisLog = "$tmPIEfolder\analysis.csv"
-$tmpLog = "$tmPIEfolder\srp-tmp.csv"
-$tmpFolder = "$tmPIEfolder\tmp\"
+$traceLog = "$tmPIEfolder/ongoing-trace-log.csv"
+$phishLog = "$tmPIEfolder/ongoing-phish-log.csv"
+$analysisLog = "$tmPIEfolder/analysis.csv"
+$tmpLog = "$tmPIEfolder/srp-tmp.csv"
+$tmpFolder = "$tmPIEfolder/tmp/"
 
 Write-Host $banner -ForegroundColor Green
 Write-Host ""
@@ -184,7 +184,7 @@ if ( $encodedXMLCredentials ) {
 #     This file will need to be re-generated whenever your system reboots!
 #
 #     To generate the XML:
-#          PS C:\> Get-Credential | Export-Clixml Service-Account_cred.xml
+#          PS /> Get-Credential | Export-Clixml Service-Account_cred.xml
 
     $CredentialsFile = "$encodedXMLCredentials"
     try {
@@ -257,23 +257,27 @@ if ( $getMail ) {
 if ( $searchMail ) {
 
     if ( $fromIP ) {
-        Get-MessageTrace -FromIP $fromIP -StartDate $48Hours -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Out-GridView
-        Write-Host "Displaying available results..."
+        Write-Host "================================"
+        Get-MessageTrace -FromIP $fromIP -StartDate $48Hours -EndDate $date | Select Received,*Address,*IP,Subject,Status | Format-Table
+        Write-Host "================================"
         break;
     }
 
     if ( $sender ) {
-        Get-MessageTrace -SenderAddress $sender -StartDate $48Hours -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Out-GridView
-        Write-Host "Displaying available results..."
+        Write-Host "================================"
+        Get-MessageTrace -SenderAddress $sender -StartDate $48Hours -EndDate $date | Select Received,*Address,*IP,Subject,Status | Format-Table
+        Write-Host "================================"
         break;
     }
 
     if ( $recipient ) {
-        Get-MessageTrace -RecipientAddress $recipient -StartDate $48Hours -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Out-GridView
-        Write-Host "Displaying available results..."
+        Write-Host "================================"
+        Get-MessageTrace -RecipientAddress $recipient -StartDate $48Hours -EndDate $date | Select Received,*Address,*IP,Subject,Status | Format-Table
+        Write-Host "================================"
         break;
     }
 }
+
 
 if ( $scrapeMail ) {
 
@@ -288,7 +292,7 @@ if ( $scrapeMail ) {
         type $tmpLog | findstr -v "MessageTraceId" > $analysisLog
         $messageCount = type $analysisLog | findstr -i $sender | Measure-Object | Select-Object Count | findstr -v "Count -"
         $messageCount = $messageCount.Trim() -match "[0-9+]"
-        type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder\recipients.txt
+        type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder/recipients.txt
         #$messageQuery1 = "from:" + '"' + $sender + '"' + " Sent:" + $today
         #$messageQuery2 = "from:" + '"' + $sender + '"' + " Sent:" + $yesterday
         #$messageQuery3 = "from:" + '"' + $sender + '"' + " Sent:" + $dayBefore
@@ -300,7 +304,7 @@ if ( $scrapeMail ) {
             $timeframe = "12 hours"
         }
     }
-
+    
     if ( $sender ) {
         
         $senderDomain = $sender.Split("@")[1]
@@ -324,7 +328,7 @@ if ( $scrapeMail ) {
             $messageCount = type $analysisLog | findstr -i $sender | Measure-Object | Select-Object Count | findstr -v "Count -"
             $messageCount = $messageCount.Trim() -match "[0-9+]"
             $spammer = $sender
-            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder\recipients.txt
+            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder/recipients.txt
             $messageQuery1 = "from:" + '"' + $sender + '"' + " Sent:" + $today
             $messageQuery2 = "from:" + '"' + $sender + '"' + " Sent:" + $yesterday
             $messageQuery3 = "from:" + '"' + $sender + '"' + " Sent:" + $dayBefore
@@ -361,7 +365,7 @@ if ( $scrapeMail ) {
 
         } else {
         
-            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder\recipients.txt
+            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder/recipients.txt
             $messageCount = type $analysisLog | findstr -i $recipient | Measure-Object | Select-Object Count | findstr -v "Count -"
             $messageCount = $messageCount.Trim() -match "[0-9+]"
             $messageQuery1 = "to:" + '"' + $recipient + '"' + " Sent:" + $today
@@ -407,7 +411,7 @@ if ( $scrapeMail ) {
 
         } else {
         
-            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder\recipients.txt
+            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder/recipients.txt
             $messageCount = type $analysis | findstr -i $subject | Measure-Object | Select-Object Count | findstr -v "Count -"
             $messageCount = $messageCount.Trim() -match "[0-9+]"
             $messageQuery1 = "Subject:" + '"' + $subject + '"' + " Sent:" + $today
@@ -425,7 +429,7 @@ if ( $scrapeMail ) {
 
     if ( $nuke -eq $true ) {
     
-        $getUsers = type $tmPIEfolder\recipients.txt
+        $getUsers = type $tmPIEfolder/recipients.txt
         
         foreach ($phishRecipient in $getUsers) {
         
@@ -452,7 +456,7 @@ if ( $scrapeMail ) {
 
     } else {
 
-        $getUsers = type $tmPIEfolder\recipients.txt
+        $getUsers = type $tmPIEfolder/recipients.txt
     
         foreach ($phishRecipient in $getUsers) {
         
@@ -473,7 +477,7 @@ if ( $scrapeMail ) {
         echo "Email messages have been extracted to the Phishing Case Inbox for further analysis..."
         echo "To delete the emails run the following PowerShell command:"
         echo ""
-        echo 'PS C:\> Search-Mailbox <end username> -SearchQuery <message query> -TargetMailbox <soc mailbox> -TargetFolder "PROCESSING" -DeleteContent -Force'echo ""
+        echo 'PS /> Search-Mailbox <end username> -SearchQuery <message query> -TargetMailbox <soc mailbox> -TargetFolder "PROCESSING" -DeleteContent -Force'echo ""
         echo "$messageCount - Total Recipients:"
         echo ""
         echo "$getUsers"
@@ -558,16 +562,16 @@ if ( $blockSender ) {
             $messageCount = type $analysisLog | findstr -i $sender | Measure-Object | Select-Object Count | findstr -v "Count -"
             $messageCount = $messageCount.Trim() -match "[0-9+]"
             $spammer = $sender
-            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder\recipients.txt
+            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder/recipients.txt
             
             Write-Host ""
             Write-Host "Blocking ($sender) from sending mail to $messageCount recipients. This may take a few minutes..."
             Write-Host ""
 
-            $getUsers = type $tmPIEfolder\recipients.txt
+            $getUsers = type $tmPIEfolder/recipients.txt
             $recipients = $getUsers.Split('"')[1]
 
-            $messageRecipients = (Get-Content "$tmPIEfolder\recipients.txt") -join ", "
+            $messageRecipients = (Get-Content "$tmPIEfolder/recipients.txt") -join ", "
             $messageRecipients = $messageRecipients -replace '"', ""
 
             foreach ($phishRecipient in $getUsers) {
@@ -637,16 +641,16 @@ if ( $unblockSender ) {
             $messageCount = type $analysisLog | findstr -i $sender | Measure-Object | Select-Object Count | findstr -v "Count -"
             $messageCount = $messageCount.Trim() -match "[0-9+]"
             $spammer = $sender
-            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder\recipients.txt
+            type $analysisLog | ForEach-Object { $_.Split(",")[3]  } | Sort | Get-Unique | findstr "@" > $tmPIEfolder/recipients.txt
             
             Write-Host ""
             Write-Host "Unblocking ($sender) to allow mail to be sent to $messageCount recipients. This may take a few minutes..."
             Write-Host ""
 
-            $getUsers = type $tmPIEfolder\recipients.txt
+            $getUsers = type $tmPIEfolder/recipients.txt
             $recipients = $getUsers.Split('"')[1]
 
-            $messageRecipients = (Get-Content "$tmPIEfolder\recipients.txt") -join ", "
+            $messageRecipients = (Get-Content "$tmPIEfolder/recipients.txt") -join ", "
             $messageRecipients = $messageRecipients -replace '"', ""
 
             foreach ($phishRecipient in $getUsers) {
@@ -697,11 +701,11 @@ if ( $checkMemberships ) {
     if ( $groups -gt 0 ) {
         Write-Host "External Group Memberships Detected" -ForegroundColor Red
         ForEach ($member in $groups) { 
-          $ext = Get-UnifiedGroupLinks -Identity $member.Identity -LinkType Members
-          ForEach ($e in $ext) {
-             If ($e.Name -match "#EXT#")
+            $ext = Get-UnifiedGroupLinks -Identity $member.Identity -LinkType Members
+            ForEach ($e in $ext) {
+                If ($e.Name -match "#EXT#")
                 { Write-Host "Group " $member.DisplayName "includes guest user" $member.Name -ForegroundColor Cyan }
-          }
+            }
         }
         Write-Host ""
     } else {
@@ -771,7 +775,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
                 # ParentProcessPath,SerialNumber,Reason,Status,ThreatId,ThreatName,SessionType,Action,ResponseCode,Identity
 
                 $payload = @('{ "items": 
- [
+    [
     {
         "displayValue": "List",
         "expirationDate": null,
@@ -858,7 +862,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
             $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload
 
             # Append List of Email Recipients
-            $messageRecipients = (Get-Content "$tmPIEfolder\recipients.txt") -join ", "
+            $messageRecipients = (Get-Content "$tmPIEfolder/recipients.txt") -join ", "
             $messageRecipients = $messageRecipients -replace '"', ""
             $note = "Email Recipients: $messageRecipients"
             
@@ -978,7 +982,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         if ( $recipient ) {
             $caseStatus = "The sender ($sender) has been blocked from sending ($recipient) further messages"
         } else {
-            $messageRecipients = (Get-Content "$tmPIEfolder\recipients.txt") -join ", "
+            $messageRecipients = (Get-Content "$tmPIEfolder/recipients.txt") -join ", "
             $messageRecipients = $messageRecipients -replace '"', ""
             $caseStatus = "The sender ($sender) has been blocked from sending further messages to $messageCount email addresses."
         }

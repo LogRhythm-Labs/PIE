@@ -2,15 +2,17 @@
     PIE Outlook Button
     LogRhythm Labs
     zack . rowland @ logrhythm . com
-    v1.0  --  November, 2017
+    v2.0  --  August, 2018
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2018 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 
-### Coming Soon!
+### About
 
-The PIE button is actively undergoing final development and testing, and will be released when we feel this is easy for customers to download and securely deploy throughout their company. In the interim, there are many other (free) options available that you may wish to consider. The main requirement is that the email is delivered to the PIE server as an attachment, so even simply instructing your user base is a great first step towards making PIE a success within your environment.
+The PIE button can be obtained from the [PIE Button GitHub Repo](https://github.com/LogRhythm-Labs/PIE-Button). This requires manual compilation and installation.
+
+In addition to the PIE button, there are many other (free) options available that you may wish to consider. The main requirement is that the email is delivered to the PIE server as an attachment, so even simply instructing your user base is a great first step towards making PIE a success within your environment.
 
 [Open Source Phishing Button by Elucidant](https://github.com/elucidant/phishingoutlookaddin)
 
@@ -45,5 +47,5 @@ The PIE button is actively undergoing final development and testing, and will be
 
 ## [License]
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2018 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.

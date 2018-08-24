@@ -2,9 +2,9 @@
     Phishing Intelligence Engine
     LogRhythm Security Operations
     greg . foss @ logrhythm . com
-    v2.0  --  August, 2018
+    v1.2  --  April, 2018
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2017 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 
@@ -57,20 +57,20 @@ This script handles the message trace logging, dynamic analytics, and automated 
 
 5) Open the Invoke-O365Trace.ps1 script and review the contents. You will need to add credentials and API keys where desired.
 
-    Review lines 43 through 89
+    Review lines 44 through 79
     
         Add credentials under each specified section (as documented in step 4)
         Review Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from ($logFolder variable)
 
-    Review Lines 90 through 154
+    Review Lines 82 through 139
 
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
 
 6) Open the plugins directory. Within this folder, edit Case-API.ps1
 
-    Review Line 39
+    Review Line 30
 
         Edit the $caseFolder parameter to define where you installed PIE, per step 4. Ensure that you leave \plugins at the end.
 
@@ -116,62 +116,29 @@ Please note, this is an added risk, so be sure that you are comfortable enabling
 
 ## [API Integrations]
 
-#### ----- Free -----
-
-[Get Link Info](http://getlinkinfo.com/)
-
-General risk information regarding links
-
-[Phish Tank](http://www.phishtank.com)
-
-Known Malicious/Phishing Link Analytics
-
-[Shodan](https://shodan.io)
-
-Domain Interrogation and SSL Inspection
-
-[Sucuri](https://sucuri.net/)
-
-General Risk Information Regarding Links
-
-[Swift On Security RegEx](https://github.com/SwiftOnSecurity/PhishingRegex)
-
-Subject and Link RegEx Checks
-
-[URL Void](http://api.urlvoid.com/)
-
-Website Reputation Evaluation
-
-
-#### ----- Paid -----
-
 [Cisco AMP ThreatGRID](https://panacea.threatgrid.com/login)
-
-Dynamic File and Link Sandboxing
 
 [Domain Tools](https://domaintools.com)
 
-Domain Analytics and Risk Analysis
+[Get Link Info](http://getlinkinfo.com/)
 
 [LogRhythm SIEM](https://logrhythm.com/solutions/security/siem/)
 
-LogRhythm Case and List API integration
-
 [OpenDNS](https://www.opendns.com/)
 
-Domain Analytics and Risk Analysis
+[Phish Tank](http://www.phishtank.com)
+
+[Sucuri](https://sucuri.net/)
 
 [Screenshot Machine](http://screenshotmachine.com/)
 
-Take Screenshots of Links via Third Party
+[Swift On Security RegEx](https://github.com/SwiftOnSecurity/PhishingRegex)
+
+[URL Void](http://api.urlvoid.com/)
 
 [VirusTotal](https://virustotal.com)
 
-Dynamic Link and File Analytics
-
 [Wrike](https://www.wrike.com/)
-
-Project Management and Workflow Automation
 
 And more coming soon...
 
@@ -197,5 +164,5 @@ Stay on top of the messages that are coming in, and develop custom AIE rules wit
 
 ## [License]
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2017 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.

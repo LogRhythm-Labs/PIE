@@ -2,9 +2,9 @@
     Office 365 Ninja
     LogRhythm Security Operations
     greg . foss @ logrhythm . com
-    v2.0  --  August, 2018
+    v1.02  --  January, 2018
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2017 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 
@@ -39,13 +39,6 @@ Ensure that the user running this script is a member of the "Discovery Managemen
     PS C:\> Invoke-O365Ninja -help
 
 #### Command details - all of which can be chained together:
-
-Search through mail logs:
-
-    PS C:\> Invoke-O365Ninja -searchMail
-
-    Available switches for mail search:
-        -sender, -recipient, -fromIP
 
 Capture A Specific Email:
 
@@ -109,10 +102,10 @@ All arguments require administrative access to Office 365, and must include the 
 
 To take advantage of the LogRhythm SIEM integrations, the following parameters are required
  
-    -LogRhythmHost, -appendToList, -spammerList -caseAPIToken, -caseNumber (optional - if not supplied a new case will be created)
+    -LogRhythmHost, -caseAPIToken, -caseNumber (optional - if not supplied a new case will be created)
 
 
 ## [License]
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2017 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.

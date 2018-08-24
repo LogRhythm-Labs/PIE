@@ -3,9 +3,9 @@
     Phishing Intelligence Engine
     LogRhythm Security Operations
     greg . foss @ logrhythm . com
-    v1.2  --  April, 2018
+    v2.0  --  August, 2018
 
-Copyright 2017 LogRhythm Inc. - See licensing details below
+Copyright 2018 LogRhythm Inc. - See licensing details below
 
 ## [About]
     
@@ -82,6 +82,7 @@ High level overview of the PIE architecture and workflow:
 
 This project would not be a success without the folks below and the various third-party API integration providers. Thank you!
 
+- [Jtekt](https://github.com/Jtekt) - Shodan Plugin, O365 Safelinks, bug fixes, and LR 7.3 API integration
 - bruce deakyne -  Cisco AMP Threat GRID Plugin
 - jake reynolds - OpenDNS Plugin
 - julian crowley - Message Tracking Log Parsing
@@ -94,7 +95,7 @@ This project would not be a success without the folks below and the various thir
 
 ## [License]
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2018 LogRhythm Inc.   
 
 PowerShell code is Licensed under the MIT License. See LICENSE file in the project root for full license information.
 

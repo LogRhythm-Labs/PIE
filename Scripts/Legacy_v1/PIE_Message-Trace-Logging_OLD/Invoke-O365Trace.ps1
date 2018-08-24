@@ -3,7 +3,7 @@
   # PIE - Phishing Intelligence Engine #
   # LogRhythm Security Operations      #
   # greg . foss @ logrhythm . com      #
-  # v2.0  --  August 2018              #
+  # v1.7  --  July 2018                #
   #====================================#
 
 # Copyright 2018 LogRhythm Inc.   
@@ -13,11 +13,11 @@
 
 INSTALL:
 
-    Review lines 43 through 89
+    Review lines 43 through 79
         Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
 
-    Review Lines 90 through 154
+    Review Lines 82 through 139
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
 
@@ -48,8 +48,8 @@ $ErrorActionPreference= 'silentlycontinue'
 
 # Choose how to handle credentials - set the desired flag to $true
 #     Be sure to set credentials or xml file location below
-$EncodedXMLCredentials = $false
-$PlainText = $true
+$EncodedXMLCredentials = $true
+$PlainText = $false
 
 # XML Configuration - store credentials in an encoded XML (best option)
 #     This file will need to be re-generated whenever the server reboots!
@@ -63,28 +63,20 @@ if ( $EncodedXMLCredentials ) {
 
 # Plain Text Credentials (not recommended)
 if ( $PlainText ) {
-    $username = "SERVICE-ACCOUNT@SOMEDOMAIN.COM"
-    $password = "PASSWORD"
+    $username = "SERVICE ACCOUNT USERNAME"
+    $password = "SERVICE ACCOUNT PASSWORD"
 }
 
 # Mailbox where Phishing emails will be reported
-$socMailbox = "phishing@somedomain.com"
+$socMailbox = "SOC MAILBOX ADDRESS"
 
 # LogRhythm Case API Integration
-$LogRhythmHost = "LR Web Console Domain/IP:8501"
-$caseAPItoken = ""
+$LogRhythmHost = "LOGRHYTHM-IP:PORT"
+$caseAPItoken = "LOGRHYTHM CASE API TOKEN"
+$spammerList = "\\LOGRHYTHM-EMDB\list_import\Known-Spammer-Emails.txt"
 
-# Threat List to update with known spammer email addresses. Set to $true if you'd like to automatically update threat lists
-$spamTracker = $false
-$spammerList = "List Name"
-
-# Case Folder and Logging
-$pieFolder = "C:\PIE\INSTALLATION\DIRECTORY"
-
-# Case Tagging and User Assignment
-$defaultCaseTag = "phishing" # Default value - modify to match your case tagging schema. If this value does not exist, the script will not add the parameter to the case.
-$caseOwner = "" # Primary case owner / SOC lead
-$caseCollaborators = ("lname1, fname1", "lname2, fname2") # Add as many users as you would like, separate them like so: "user1", "user2"...
+# Case Folders and Logging
+$pieFolder = "C:\PIE_INSTALL_FOLDER"
 
 
 # ================================================================================
@@ -94,13 +86,10 @@ $caseCollaborators = ("lname1, fname1", "lname2, fname2") # Add as many users as
 # For each supported module, set the flag to $true and enter the associated API key
 
 # Auto Quarantine or Auto Ban?
-$autoQuarantine = $false # Auto quarantine and/or ban the sender
+$autoQuarantine = $true # Auto quarantine and/or ban the sender
 $subjectAutoQuarantine = $false # Auto quarantine and create a case if the email matches the subject line regex check
 $autoBan = $false # Auto blacklist known-bad senders
 $threatThreshold = 5 # Actions run when the threat score is greater than the 'threatThreshold' below
-
-# Are Office 365 SafeLinks in use?
-$safeLinks = $false
 
 # General Link Analysis - No API key required and enabled by default
 $linkRegexCheck = $true
@@ -129,10 +118,6 @@ $urlVoidKey = ""
 # PhishTank.com
 $phishTank = $false
 $phishTankAPI = ""
-
-# Shodan.io
-$shodan = $false
-$shodanAPI = ""
 
 # Screenshot Machine
 $screenshotMachine = $false
@@ -192,9 +177,6 @@ function GetSubfolders($Parent) {
         GetSubfolders($Subfolder)
     }
 }
-
-# Link and Domain Verification
-$IPregex=‘(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))’
 
 
 # ================================================================================
@@ -283,7 +265,7 @@ if ( $log -eq $true) {
             If([string]$_ -match ($subjectRegex -join "|")) {
                 # Autoquarantine!
                 $subjectQuarantineNote = "Initiating auto-quarantine based on suspicious email subject RegEx matching. Copying messages to the Phishing inbox and hard-deleting from all recipient inboxes."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$subjextQuarantineNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$subjextQuarantineNote" -token $caseAPItoken
                 sleep 5
                 if ( $EncodedXMLCredentials ) {
                     & $pieFolder\plugins\O365Ninja.ps1 -scrapeMail -sender "$spammer" -nuke -encodedXMLCredentials "$EncodedXMLCredentials" -socMailbox $socMailBox -LogRhythmHost $LogRhythmHost -caseAPItoken $caseAPItoken
@@ -303,6 +285,7 @@ if ( $log -eq $true) {
         
         # Track the user who reported the message
         $reportedBy = $reportPhish.Split(",")[2]; $reportedBy = $reportedBy.Split('"')[1]
+
         # Extract reported messages
         foreach($message in $messages){
             $msubject = $message.subject
@@ -342,34 +325,12 @@ if ( $log -eq $true) {
 
                     $getLinks = $msg.Body | findstr -i http
                     $null > "$tmpFolder\links.txt"
-                    
-                    [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
-                    
                     foreach ($link in $getLinks) {
-                        
-                        $link = @(@($link.Split("<")[1])).Split(">")[0]
-                            
-                        if ($safeLinks -eq $true) {
-                        
-                            [string[]] $urlParts = $link.Split("?")[1]
-                            [string[]] $linkParams = $urlParts.Split("&")
-
-                            for ($n=0; $n -lt $linkParams.Length; $n++) {
-                        
-                                [string[]] $namVal = $linkParams[$n].Split("=")
-                        
-                                if($namVal[0] -eq "url") {
-                        
-                                    $encodedLink = $namVal[1]
-                                    break
-                                }
-                            }
-                            $link = [System.Web.HttpUtility]::UrlDecode($encodedLink)
-                        }
-                        $link >> "$tmpFolder\links.txt"
+                            $link = @(@($link.Split("<")[1])).Split(">")[0]
+                            $link >> "$tmpFolder\links.txt"
                     }
-                    $links = type "$tmpFolder\links.txt" | Sort -Unique
 
+                    $links = type "$tmpFolder\links.txt" | Sort -Unique
                     $countLinks = @(@(Get-Content "$tmpFolder\links.txt" | Measure-Object -Line | Select-Object Lines | findstr -v "Lines -") -replace "`n|`r").Trim()
                     
                     $attachmentCount = $msg.Attachments.Count
@@ -615,36 +576,16 @@ Case Folder:                 $caseID
 
         if ( $spammer.Contains("@") -eq $true) {
             $caseSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours."
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -createCase "Phishing : $spammerName [at] $spammerDomain" -priority 3 -summary "$caseSummary" -token $caseAPItoken
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command create_case -priority 3 -note "Phishing : $spammerName [at] $spammerDomain" -summary "$caseSummary" -token $caseAPItoken
             sleep 5
         } else {
             $caseSummary = "Phishing email was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours."
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -createCase "Phishing Message Reported" -priority 3 -summary "$caseSummary" -token $caseAPItoken
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command create_case -priority 3 -note "Phishing Message Reported" -summary "$caseSummary" -token $caseAPItoken
         }
         $caseNumber = Get-Content "$pieFolder\plugins\case.txt"
         mv "$pieFolder\plugins\case.txt" "$caseFolder$caseID\"
         $caseURL = "https://$LogRhythmHost/cases/$caseNumber"
 
-        # Tag the case as phishing
-        if ( $defaultCaseTag ) {
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -addTag "$defaultCaseTag" -casenum $caseNumber -token $caseAPItoken
-        }
-
-        # Adding and assigning the Case Owner
-        if ( $caseOwner ) {
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -addCaseUser "$caseOwner" -casenum $caseNumber -token $caseAPItoken
-            sleep 1
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -changeCaseOwner "$caseOwner" -casenum $caseNumber -token $caseAPItoken
-        }
-
-        # Adding and assigning other users
-        if ( $caseCollaborators ) {
-            foreach ( $i in $caseCollaborators ) {
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -addCaseUser "$i" -casenum $caseNumber -token $caseAPItoken
-                sleep 1
-            }
-        }
-        
         # Append Case Info to 
         echo "LogRhythm Case Information:" >> "$caseFolder$caseID\spam-report.txt"
         echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -655,11 +596,11 @@ Case Folder:                 $caseID
         # Copy raw logs to case
         $caseNote = type $analysisLog
         $caseNote = $caseNote -replace '"', ""
-        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Raw Phishing Logs: $caseNote" -token $caseAPItoken
+        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Raw Phishing Logs: $caseNote" -token $caseAPItoken
         
         # Recipients
         $messageRecipients = (Get-Content "$caseFolder$caseID\recipients.txt") -join ", "
-        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Email Recipients: $messageRecipients" -token $caseAPItoken
+        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Email Recipients: $messageRecipients" -token $caseAPItoken
 
 
         # ================================================================================
@@ -675,8 +616,8 @@ Case Folder:                 $caseID
             & $pieFolder\plugins\wrike.ps1 -newTask "Case $caseNumber - Phishing email from $spammer" -wrikeUserName $wrikeUser -wrikeFolderName $wrikeFolder -wrikeDescription $secOpsSummary -accessToken $wrikeAPI
             
             # Labs
-            $labsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case ($LogRhythmHost/cases/$caseNumber) and Evidence folder"
-            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Tasks Created in Wrike..." -token $caseAPItoken
+            $labsSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours. For more information, review the LogRhythm Case (https://$LogRhythmHost/cases/$caseNumber) and Evidence folder"
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Tasks Created in Wrike..." -token $caseAPItoken
 
         }
 
@@ -689,7 +630,7 @@ Case Folder:                 $caseID
                 Invoke-RestMethod "http://api.screenshotmachine.com/?key=$screenshotKey&dimension=1024x768&format=png&url=$_" -OutFile "$caseFolder$caseID\screenshot-$splitLink.png"
                     
                 $screenshotStatus = "Screenshot of hxxp://$splitLink website has been captured and saved with the case folder: screenshot-$splitLink.png"
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$screenshotStatus" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$screenshotStatus" -token $caseAPItoken
             }
         }
 
@@ -700,10 +641,7 @@ Case Folder:                 $caseID
                 $splitLink = $_.Split(":") | findstr -v http
 
                 $linkInfo = iwr http://www.getlinkinfo.com/info?link=$_
-
-                $linkInfo.RawContent | Out-File $tmpFolder\linkInfo.txt
-                $isItSafe = Get-Content $tmpFolder\linkInfo.txt | Select-String -Pattern '((?![0]).) unsafe\)*'
-
+                $isItSafe = $linkInfo.RawContent | findstr unsafe
                 if ( $isItSafe ) {
                     $getLinkInfoStatus = "UNSAFE LINK DETECTED (hxxp:$splitLink)! More Information: http://www.getlinkinfo.com/info?link=$_"
                     $threatScore += 1
@@ -711,7 +649,7 @@ Case Folder:                 $caseID
                     $getLinkInfoStatus = "Link (hxxp:$splitLink) is considered low risk. More Information: http://www.getlinkinfo.com/info?link=$_"
                 }
 
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$getLinkInfoStatus" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$getLinkInfoStatus" -token $caseAPItoken
 
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -749,7 +687,7 @@ Case Folder:                 $caseID
                     $threatScore += 1
                 }
 
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$phishTankStatus" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$phishTankStatus" -token $caseAPItoken
                 
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -767,29 +705,20 @@ Case Folder:                 $caseID
                 $splitLink = ([System.Uri]"$_").Host
                     
                 $sucuriLink = "https://sitecheck.sucuri.net/results/$splitLink"
-                $sucuriAnalysis = iwr "https://sitecheck.sucuri.net/api/v2/?scan=$splitLink&json"
-                $sucuriAnalysis.RawContent | Out-File $tmpFolder\sucuriAnalysis.txt
+                $sucuriAnalysis = iwr https://sitecheck.sucuri.net/results/$splitLink
 
-                $sucuriResults = Get-Content $tmpFolder\sucuriAnalysis.txt | select -Skip 12 | ConvertFrom-Json
-                $isitblacklisted = $sucuriResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Blacklist'
-                $isitcompromised = $sucuriResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Websitemalware'
+                $isitblacklisted = $sucuriAnalysis.Content | findstr blacklisted
+                $isitcompromised = $sucuriAnalysis.Content | findstr -i compromised
 
-                if ( !$isitblacklisted.BLACKLIST -eq $true ) {
-                
+                if ( $isitblacklisted ) {
                     $sucuriStatus = "MALICIOUS LINK! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
 
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$sucuriStatus" -token $caseAPItoken
-                
-                } 
-                
-                if ( !$isitcompromised.WEBSITEMALWARE -eq $true ) {
-                
-                    $sucuriStatus = "MALWARE DETECTED! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
-                    $threatScore += 1
-                
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$sucuriStatus" -token $caseAPItoken
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
+                } else {
+                    $sucuriStatus = "Sucuri has determined this link is clean. Full details available here: $sucuriLink."
 
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$sucuriStatus" -token $caseAPItoken
                 }
 
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
@@ -850,7 +779,7 @@ Case Folder:                 $caseID
                     }
                 }
                 
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$domainToolsUpdate" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$domainToolsUpdate" -token $caseAPItoken
 
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -859,24 +788,6 @@ Case Folder:                 $caseID
                 echo $domainToolsUpdate >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
             }
-        }
-
-        # SHODAN
-        if ( $shodan -eq $true ) {
-
-            echo "Shodn.io" >> "$caseFolder$caseID\spam-report.txt"
-            echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-
-            $links | ForEach-Object {
-                $splitLink = ([System.Uri]"$_").Host
-                echo "Shodan Analysis: $splitLink" >> "$caseFolder$caseID\spam-report.txt"
-
-                & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $splitLink -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
-            
-            }
-
-            echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-            echo "" >> "$caseFolder$caseID\spam-report.txt"
         }
 
         # OPEN DNS
@@ -900,7 +811,7 @@ Case Folder:                 $caseID
                     $OpenDNSStatus = "OpenDNS - Benign Domain: $splitLink"
                 }
 
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$OpenDNSStatus" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$OpenDNSStatus" -token $caseAPItoken
 
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -972,7 +883,7 @@ Case Folder:                 $caseID
 
                     }    
                 }
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$urlVoidStatus" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$urlVoidStatus" -token $caseAPItoken
 
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -1010,7 +921,7 @@ Case Folder:                 $caseID
                         $threatScore += $VTPositives
                     }
 
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$VTStatus" -token $caseAPItoken
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$VTStatus" -token $caseAPItoken
 
                     echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                     echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -1021,7 +932,7 @@ Case Folder:                 $caseID
 
                 }
             } else { 
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "VirusTotal API key required to check / submit samples" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "VirusTotal API key required to check / submit samples" -token $caseAPItoken
             }
         }
 
@@ -1032,7 +943,7 @@ Case Folder:                 $caseID
 
                 if ( $_ -match "https://bit.ly" ) {
                 
-                    # bit.ly
+                    # BitLy
                     $shortLinkContent = iwr $_
                     $expandedLink = ($shortLinkContent.Content | findstr -i long_url).Split('"') | findstr -i "http https" | unique
 
@@ -1040,29 +951,28 @@ Case Folder:                 $caseID
 
                     $shortLinkStatus = "Shortened Link Detected! Metrics: $_+. Redirect: hxxp:$splitLink"
 
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shortLinkStatus" -token $caseAPItoken
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shortLinkStatus" -token $caseAPItoken
                 }
 
                 if ( $_ -match "https://goo.gl" ) {
                 
-                    # goo.gl
-                    $shortLinkContent = iwr $_
-                    $expandedLink = ($shortLinkContent.Content | findstr -i long_url).Split('"') | findstr -i "http https" | unique
-                    $splitLink = $expandedLink.Split(":") | findstr -v http
+                    # Goo.gl
+                    #$shortLinkContent = iwr $_
+                    #$expandedLink = ($shortLinkContent.Content | findstr -i long_url).Split('"') | findstr -i "http https" | unique
+                    #$splitLink = $expandedLink.Split(":") | findstr -v http
 
                     $shortLinkStatus = "Shortened Link Detected! Metrics: $_+."
 
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shortLinkStatus" -token $caseAPItoken
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shortLinkStatus" -token $caseAPItoken
                 }
 
                 if ( $_ -match "http://x.co" ) {
 
-                    # x.co
                     $splitLink = $_.Split(":") | findstr -v http
                     $shortLinkStatus = "Machine Learning analysis has detected a possibly malicious link hxxp:$_."
                     $threatScore += 1
 
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shortLinkStatus" -token $caseAPItoken
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shortLinkStatus" -token $caseAPItoken
                 }
             }
         }
@@ -1147,10 +1057,10 @@ Case Folder:                 $caseID
                     $regExCheckStatus = "UNSAFE LINK DETECTED (hxxp:$splitLink)! Positive RegEx match - possibly malicious."
                     $threatScore += 1
                 } else {
-                    Write-Host "No RegEx matches for (hxxp:$splitLink) - potentially benign."
+                    Write-Host "No RegEx matches for (hxxp:$splitLink) - likely benign."
                 }
 
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$regExCheckStatus" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$regExCheckStatus" -token $caseAPItoken
 
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -1167,7 +1077,7 @@ Case Folder:                 $caseID
             if ( $files ) {
                 # Update Case
                 $caseNote = "The collected files are now being analyzed for risk using Cisco AMP Threat Grid..."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$caseNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$caseNote" -token $caseAPItoken
                 
                 $allAttachments = ls "$tmpFolder\attachments\"
                 $allAttachments.Name | ForEach-Object { 
@@ -1177,7 +1087,7 @@ Case Folder:                 $caseID
             } elseif ( $countLinks -gt 0 ) {
                 # Update Case
                 $caseNote = "The collected links are now being analyzed for risk using Cisco AMP Threat Grid..."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$caseNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$caseNote" -token $caseAPItoken
 
                 $links | ForEach-Object { 
                     & $pieFolder\plugins\ThreatGRID-PIE.ps1 -url "$_" -key $threatGridAPI -caseNumber $caseNumber -caseFolder "$caseFolder$caseID" -caseAPItoken $caseAPItoken -LogRhythmHost $LogRhythmHost
@@ -1185,12 +1095,12 @@ Case Folder:                 $caseID
             } else {
                 # Nothing to do
                 $caseNote = "No content for Cisco AMP Threat Grid to analyze..."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$caseNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$caseNote" -token $caseAPItoken
             }
 
             #$threatGridScore = "90"
             #$threatGridRisk = "HIGH RISK"
-            #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "ThreatGRID Analysis Score: $threatGridScore ($threatGridRisk)" -token $caseAPItoken
+            #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "ThreatGRID Analysis Score: $threatGridScore ($threatGridRisk)" -token $caseAPItoken
         }
 
         
@@ -1198,15 +1108,10 @@ Case Folder:                 $caseID
         if ( $spammerList ) {
             if ( $threatScore -gt $threatThreshold ) {
                 if ( $spammer.Contains("@") -eq $true) {
-                    
-                    & $pieFolder\plugins\List-API.ps1 -lrhost $LogRhythmHost -appendToList "$spammer" -listName "$spammerList" -token $caseAPItoken
-                    sleep 1
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Spammer ($spammer) added to Threat List ($spammerList)" -token $caseAPItoken
-                
+                    echo "$spammer" >> $spammerList
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Spammer ($spammer) added to the Known Spammers Threat List" -token $caseAPItoken
                 } else {
-                
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Unable to extract the spammer's email - manual analysis of the message is required" -token $caseAPItoken
-                
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Unable to extract the spammer's email - manual analysis of the message is required" -token $caseAPItoken
                 }
             }
         }
@@ -1217,7 +1122,7 @@ Case Folder:                 $caseID
 
             if ( $threatScore -gt $threatThreshold ) {
                 $autoQuarantineNote = "Initiating auto-quarantine based on Threat Score of $threatScore. Copying messages to the Phishing inbox and hard-deleting from all recipient inboxes."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$autoQuarantineNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$autoQuarantineNote" -token $caseAPItoken
                 sleep 5
                 if ( $EncodedXMLCredentials ) {
                     & $pieFolder\plugins\O365Ninja.ps1 -scrapeMail -sender "$spammer" -nuke -caseNumber $caseNumber -encodedXMLCredentials "$EncodedXMLCredentials" -socMailbox $socMailBox -LogRhythmHost $LogRhythmHost -caseAPItoken $caseAPItoken
@@ -1228,7 +1133,7 @@ Case Folder:                 $caseID
 
             if ( $threatScore -lt $threatThreshold ) {
                 $autoQuarantineNote = "Email not quarantined due to a required Threat Threshold of $threatThreshold."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$autoQuarantineNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$autoQuarantineNote" -token $caseAPItoken
             }
 
             echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
@@ -1243,7 +1148,7 @@ Case Folder:                 $caseID
 
             if ( $threatScore -gt $threatThreshold ) {
                 $autoBanNote = "Automatically banning $spammer based on Threat Score of $threatScore."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$autoBanNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$autoBanNote" -token $caseAPItoken
                 sleep 5
                 if ( $EncodedXMLCredentials ) {
                     & $pieFolder\plugins\O365Ninja.ps1 -blockSender -sender "$spammer" -caseNumber $caseNumber -encodedXMLCredentials "$EncodedXMLCredentials" -socMailbox $socMailBox -LogRhythmHost $LogRhythmHost -caseAPItoken $caseAPItoken
@@ -1254,7 +1159,7 @@ Case Folder:                 $caseID
 
             if ( $threatScore -lt $threatThreshold ) {
                 $autoBanNote = "Sender ($spammer) not quarantined due to a required Threat Threshold of $threatThreshold."
-                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$autoBanNote" -token $caseAPItoken
+                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$autoBanNote" -token $caseAPItoken
             }
 
             echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
@@ -1270,7 +1175,7 @@ Case Folder:                 $caseID
         # ================================================================================
 
         # Final Threat Score
-        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Email Threat Score: $threatScore" -token $caseAPItoken
+        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Email Threat Score: $threatScore" -token $caseAPItoken
 
         echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
         echo "" >> "$caseFolder$caseID\spam-report.txt"
@@ -1282,7 +1187,7 @@ Case Folder:                 $caseID
         # Add Network Share Location to the Case
         $hostname = hostname
         $networkShare = "\\\\$hostname\\cases\\$caseID\\"
-        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Case Details: $networkShare" -token $caseAPItoken
+        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "Case Details: $networkShare" -token $caseAPItoken
         
         }
 }
