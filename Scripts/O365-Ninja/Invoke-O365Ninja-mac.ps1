@@ -758,27 +758,7 @@ if ( $checkMemberships ) {
 # LOGRHYTHM CASE AND LIST MANAGEMENT
 # ================================================================================
 
-##########  CURRENTLY BROKEN DUE TO .NET REQUIERMENT FOR CERTIFICATE ACCEPTANCE ##########
-
-<#
 if ( $caseAPItoken ) {
-
-    #force TLS v1.2 required by caseAPI
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-    # Ignore invalid SSL certification warning
-add-type @"
-using System.Net;
-using System.Security.Cryptography.X509Certificates;
-public class TrustAllCertsPolicy : ICertificatePolicy {
-    public bool CheckValidationResult(
-        ServicePoint srvPoint, X509Certificate certificate,
-        WebRequest request, int certificateProblem) {
-        return true;
-    }
-}
-"@
-    [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
     $token = "Bearer $caseAPItoken"
     $caseURL = "https://$LogRhythmHost/lr-case-api/cases/"
@@ -830,7 +810,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 ]}')
                 try {
                 
-                    $output = Invoke-RestMethod -Uri $listUpdate -Headers $headers -Method POST -Body $payload
+                    $output = Invoke-RestMethod -Uri $listUpdate -Headers $headers -Method POST -Body $payload -SkipCertificateCheck
 
                     Write-Host "Successfully Appended " -NoNewline
                     Write-Host "$sender" -NoNewline -ForegroundColor Cyan
@@ -876,7 +856,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 
             # CREATE CASE
             $payload = "{ `"name`": `"$caseName`", `"priority`": $casePriority, `"summary`": `"$caseSummary`" }"
-            $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method POST -Body $payload
+            $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method POST -Body $payload -SkipCertificateCheck
             $caseNumber = $output.number
             $noteurl = $caseURL + "number/$caseNumber/evidence/note"
             sleep 5
@@ -899,7 +879,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
             Write-Host "Adding Case Note:"
             Write-Host "$note" -ForegroundColor Cyan
             $payload = "{ `"text`": `"$note`" }"
-            $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload
+            $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload -SkipCertificateCheck
 
             # Append List of Email Recipients
             $messageRecipients = (Get-Content "$tmPIEfolder/recipients.txt") -join ", "
@@ -909,16 +889,16 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
             Write-Host "Appending List of Recipients to the case:"
             Write-Host "$note" -ForegroundColor Cyan
             $payload = "{ `"text`": `"$note`" }"
-            $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload
+            $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload -SkipCertificateCheck
 
             # Send the datas
-            $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+            $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET -SkipCertificateCheck
             $output = $output | Select-Object number, id | Where-Object number -EQ $caseNumber
             $caseUUID = $output.id
 
             # Tag The Case
             $tagUrl = "https://$LogRhythmHost/lr-case-api/tags/"
-            $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET
+            $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET -SkipCertificateCheck
             $tagNumber = @($output | Select-Object number, text | Where-Object text -EQ "$defaultCaseTag").number
             $tagUrl = $caseUrl + "/$caseUUID/actions/addTags"
 
@@ -926,7 +906,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
             Write-Host "`"$defaultCaseTag`"" -ForegroundColor Cyan
 
             $payload = "{ `"numbers`": `[$tagNumber`] }"
-            $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload
+            $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload -SkipCertificateCheck
         }
 
         # Update Case status
@@ -935,7 +915,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         Write-Host "Adding Case Note:"
         Write-Host "$note" -ForegroundColor Cyan
         $payload = "{ `"text`": `"$note`" }"
-        $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload
+        $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload -SkipCertificateCheck
 
     }
 
@@ -952,7 +932,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 
             # CREATE CASE
             $payload = "{ `"name`": `"$caseName`", `"priority`": $casePriority, `"summary`": `"$caseSummary`" }"
-            $output = Invoke-RestMethod -uri $caseURL -headers $headers -Method POST -body $payload
+            $output = Invoke-RestMethod -uri $caseURL -headers $headers -Method POST -body $payload -SkipCertificateCheck
             $caseNumber = $output.number
             sleep 5
 
@@ -974,11 +954,11 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         Write-Host "Adding Case Note:"
         Write-Host "$note" -ForegroundColor Cyan
         $payload = "{ `"text`": `"$note`" }"
-        $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload
+        $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload -SkipCertificateCheck
 
         # Tag The Case
         $tagUrl = "https://$LogRhythmHost/lr-case-api/tags/"
-        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET
+        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET -SkipCertificateCheck
         $tagNumber = @($output | Select-Object number, text | Where-Object text -EQ "password reset").number
         $tagUrl = $caseUrl + "/$caseUUID/actions/addTags"
 
@@ -986,7 +966,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         Write-Host "`"password reset`"" -ForegroundColor Cyan
 
         $payload = "{ `"numbers`": `[$tagNumber`] }"
-        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload
+        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload -SkipCertificateCheck
 
     }
 
@@ -1003,7 +983,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
             
             # CREATE CASE
             $payload = "{ `"name`": `"$caseName`", `"priority`": $casePriority, `"summary`": `"$caseSummary`" }"
-            $output = Invoke-RestMethod -uri $caseURL -headers $headers -Method POST -body $payload
+            $output = Invoke-RestMethod -uri $caseURL -headers $headers -Method POST -body $payload -SkipCertificateCheck
             $caseNumber = $output.number
             sleep 5
 
@@ -1033,11 +1013,11 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         Write-Host "Adding Case Note:"
         Write-Host "$note" -ForegroundColor Cyan
         $payload = "{ `"text`": `"$note`" }"
-        $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload
+        $output = Invoke-RestMethod -uri $noteurl -headers $headers -Method POST -body $payload -SkipCertificateCheck
 
         # Tag The Case
         $tagUrl = "https://$LogRhythmHost/lr-case-api/tags/"
-        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET
+        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method GET -SkipCertificateCheck
         $tagNumber = @($output | Select-Object number, text | Where-Object text -EQ "sender blocked").number
         $tagUrl = $caseUrl + "/$caseUUID/actions/addTags"
 
@@ -1045,18 +1025,18 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         Write-Host "`"sender blocked`"" -ForegroundColor Cyan
 
         $payload = "{ `"numbers`": `[$tagNumber`] }"
-        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload
+        $output = Invoke-RestMethod -Uri $tagUrl -Headers $headers -Method PUT -Body $payload -SkipCertificateCheck
 
     }
 
     # Add Case User and assign ownership
     if ( $addCaseUser ) {
         $userLookup = "https://$LogRhythmHost/lr-case-api/persons/"
-        $output = Invoke-RestMethod -Uri $userLookup -Headers $headers -Method GET
+        $output = Invoke-RestMethod -Uri $userLookup -Headers $headers -Method GET -SkipCertificateCheck
         $userNumber = @($output | Select-Object number, name | Where-Object name -EQ "$addCaseUser").number
 
         # Find Case UUID
-        $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET
+        $output = Invoke-RestMethod -Uri $caseURL -Headers $headers -Method GET -SkipCertificateCheck
         $output = $output | Select-Object number, id | Where-Object number -EQ $caseNumber
         $caseUUID = $output.id
 
@@ -1067,7 +1047,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         Write-Host "to Case:: " -NoNewline
         Write-Host "`"$caseNumber`"" -ForegroundColor Cyan
         $payload = "{ `"numbers`": `[$userNumber`] }"
-        $output = Invoke-RestMethod -Uri $userQuery -Headers $headers -Method PUT -Body $payload
+        $output = Invoke-RestMethod -Uri $userQuery -Headers $headers -Method PUT -Body $payload -SkipCertificateCheck
 
         # Update Case Owner
         $userUpdate = $caseURL + "/$caseUUID/actions/changeOwner/"
@@ -1076,11 +1056,10 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
         Write-Host "owner to:: " -NoNewline
         Write-Host "`"$addCaseUser`"" -ForegroundColor Cyan
         $payload = "{ `"number`": $userNumber }"
-        $output = Invoke-RestMethod -Uri $userUpdate -Headers $headers -Method PUT -Body $payload
+        $output = Invoke-RestMethod -Uri $userUpdate -Headers $headers -Method PUT -Body $payload -SkipCertificateCheck
     }
 
 }
-#>
 
 # clean up and clear all variables
 Remove-PSSession $Session
