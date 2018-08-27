@@ -1033,7 +1033,7 @@ Case Folder:                 $caseID
                 if ( $_ -match "https://bit.ly" ) {
                 
                     # bit.ly
-                    $shortLinkContent = iwr $_
+                    $shortLinkContent = iwr "$_+"
                     $expandedLink = ($shortLinkContent.Content | findstr -i long_url).Split('"') | findstr -i "http https" | unique
 
                     $splitLink = $expandedLink.Split(":") | findstr -v http
@@ -1046,7 +1046,7 @@ Case Folder:                 $caseID
                 if ( $_ -match "https://goo.gl" ) {
                 
                     # goo.gl
-                    $shortLinkContent = iwr $_
+                    $shortLinkContent = iwr "$_+"
                     $expandedLink = ($shortLinkContent.Content | findstr -i long_url).Split('"') | findstr -i "http https" | unique
                     $splitLink = $expandedLink.Split(":") | findstr -v http
 
