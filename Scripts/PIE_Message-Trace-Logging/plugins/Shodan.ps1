@@ -28,7 +28,9 @@ param(
 $ErrorActionPreference= 'silentlycontinue'
 
 # Global Parameters
-$IPregex=‘(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))’
+$IPregex='(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))'
+# Optional information.  Will append domain information into LR case.
+$shodanDetails = $true
 
 # Query DNS and obtain domain IP address
 $shodanIPQuery = Invoke-RestMethod "https://api.shodan.io/dns/resolve?hostnames=$link&key=$key"
@@ -84,6 +86,7 @@ if ( $shodanCert1.cert.expired -eq $true ) {
     $threatScore += 1
 
     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+    echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
 } 
 
 if ( $shodanCertIssuer -imatch "Let's Encrypt" ) {
@@ -91,34 +94,31 @@ if ( $shodanCertIssuer -imatch "Let's Encrypt" ) {
     Write-Host $shodanStatus
     $threatScore += 1
 
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
-        
+    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+    echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"                       
 } elseif ( $shodanTags -imatch "self-signed" ) {
     $shodanStatus = "SELF SIGNED CERTIFICATE DETECTED! Shodan has reported $link's certificates as self-signed. Full details available here: $shodanLink."
     Write-Host $shodanStatus
     $threatScore += 1
 
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken       
+    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken  
+    echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"     
 }
 
-$isitblacklisted = $shodanStatus.MALWARE.NOTIFICATIONS | Select-Object -Property 'Blacklist'
-$isitcompromised = $shodanStatus.MALWARE.NOTIFICATIONS | Select-Object -Property 'Websitemalware'
-
-if ( $isitblacklisted.BLACKLIST -eq $true ) {
-    $shodanStatus = "BLACKLISTED LINK! shodan has flagged this host: $link. Full details available here: $shodanLink."
-    $threatScore += 1
-
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
-} 
-if ( $isitcompromised.WEBSITEMALWARE -eq $true ) {
-    $shodanStatus = "MALWARE DETECTED! shodan has flagged this host: $link. Full details available here: $shodanLink."
-    $threatScore += 1
-
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken                    
-} else {
-    $shodanStatus = "shodan has determined this link is clean. Full details available here: $shodanLink."
-
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+if ( $shodanDetails -eq $true ) {
+    $shodanStatus = "====INFO - SHODAN====\r\nInformation on $splitURL`:$shodanIP.\r\nReported location:\r\n Country: $shodanCountry"
+    if ( $shodanCity ) { $shodanStatus += "\r\n City: $shodanCity" } 
+    if ( $shodanRegion ) { $shodanStatus += "\r\n Region: $shodanRegion" }
+    if ( $shodanPostal ) { $shodanStatus += "\r\n Postal: $shodanPostal" }
+    if ( $shodanSSL -eq $true ) { $shodanStatus += "\r\nCertificate Authority: $shodanCertIssuer.\r\nExpires on: $shodanCertExpiration" }
+    if ( $shodanTags ) { $shodanStatus += "\r\nDetected tags: $shodanTags" }
+    $shodanStatus += "\r\nLast scanned on $shodanScanDate."
 }
+        
+& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
 
+if ( $threatScore -le 0 ) { 
+$shodanStatus = "Shodan has determined this link is clean. Full details available here: $shodanLink."
 echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
+Write-Host $shodanStatus
+}
