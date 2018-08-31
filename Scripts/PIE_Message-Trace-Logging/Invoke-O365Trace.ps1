@@ -369,6 +369,7 @@ if ( $log -eq $true) {
                         $link >> "$tmpFolder\links.txt"
                     }
                     $links = type "$tmpFolder\links.txt" | Sort -Unique
+                    $domains = (Get-Content $tmpFolder\links.txt) | %{ ([System.Uri]$_).Host } | Select-Object -Unique
 
                     $countLinks = @(@(Get-Content "$tmpFolder\links.txt" | Measure-Object -Line | Select-Object Lines | findstr -v "Lines -") -replace "`n|`r").Trim()
                     
@@ -719,6 +720,8 @@ Case Folder:                 $caseID
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
                 echo $getLinkInfoStatus >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
+
+                Remove-Item -Path $tmpFolder\linkInfo.txt
             }
         }
 
@@ -763,18 +766,16 @@ Case Folder:                 $caseID
         # SUCURI LINK ANALYSIS
         if ( $sucuri -eq $true ) {
 
-            $links | ForEach-Object {
-                $splitLink = ([System.Uri]"$_").Host
-                    
-                $sucuriLink = "https://sitecheck.sucuri.net/results/$splitLink"
-                $sucuriAnalysis = iwr "https://sitecheck.sucuri.net/api/v2/?scan=$splitLink&json"
+            $domains | ForEach-Object {
+                $sucuriLink = "https://sitecheck.sucuri.net/results/$_"
+                $sucuriAnalysis = iwr "https://sitecheck.sucuri.net/api/v2/?scan=$_&json"
                 $sucuriAnalysis.RawContent | Out-File $tmpFolder\sucuriAnalysis.txt
 
                 $sucuriResults = Get-Content $tmpFolder\sucuriAnalysis.txt | select -Skip 12 | ConvertFrom-Json
                 $isitblacklisted = $sucuriResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Blacklist'
                 $isitcompromised = $sucuriResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Websitemalware'
 
-                if ( !$isitblacklisted.BLACKLIST -eq $true ) {
+                if ( $isitblacklisted.BLACKLIST -eq $true ) {
                 
                     $sucuriStatus = "MALICIOUS LINK! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
@@ -783,11 +784,17 @@ Case Folder:                 $caseID
                 
                 } 
                 
-                if ( !$isitcompromised.WEBSITEMALWARE -eq $true ) {
+                if ( $isitcompromised.WEBSITEMALWARE -eq $true ) {
                 
                     $sucuriStatus = "MALWARE DETECTED! Sucuri has flagged this host: $splitLink. Full details available here: $sucuriLink."
                     $threatScore += 1
                 
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$sucuriStatus" -token $caseAPItoken
+
+                }
+                if ( !$isitcompromised.BLACKLIST -eq $true -and !$isitcompromised.WEBSITEMALWARE -eq $true ) {
+                    $sucuriStatus = "Sucuri has determined this link is clean.  Full details available here: $sucuriLink."
+
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$sucuriStatus" -token $caseAPItoken
 
                 }
@@ -798,6 +805,8 @@ Case Folder:                 $caseID
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
                 echo $sucuriStatus >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
+
+                Remove-Item -Path $tmpFolder\sucuriAnalysis.txt
             }
         }
 
@@ -864,14 +873,13 @@ Case Folder:                 $caseID
         # SHODAN
         if ( $shodan -eq $true ) {
 
-            echo "Shodn.io" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
             echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
 
-            $links | ForEach-Object {
-                $splitLink = ([System.Uri]"$_").Host
-                echo "Shodan Analysis: $splitLink" >> "$caseFolder$caseID\spam-report.txt"
+            $domains | ForEach-Object {
+                echo "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
 
-                & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $splitLink -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+                & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
             
             }
 

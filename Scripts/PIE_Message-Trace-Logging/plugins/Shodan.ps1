@@ -60,8 +60,6 @@ echo "Tags: $shodanTags" >> "$caseFolder$caseID\spam-report.txt"
 #Determine if HTTPS services identified.
 $shodanModules = $shodanHostInfo.data | Select-Object -ExpandProperty _shodan | Select-Object -ExpandProperty module
 
-$shodanHostInfo
-
 #If HTTPS identified populate associated variables.
 if ( $shodanModules -imatch "https" ) {
     $shodanSSL = $true
@@ -85,40 +83,42 @@ if ( $shodanCert1.cert.expired -eq $true ) {
     Write-Host $shodanStatus
     $threatScore += 1
 
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shodanStatus" -token $caseAPItoken
     echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
 } 
 
 if ( $shodanCertIssuer -imatch "Let's Encrypt" ) {
-    $shodanStatus = "RISKY CERTIFICATE AUTHORITY DETECTED! Shodan has reported $link's CA as Let's Encrypt. Full details available here: $shodanLink."
+    $shodanStatus = "RISKY CERTIFICATE AUTHORITY DETECTED! Shodan has reported $link CA as Let's Encrypt. Full details available here: $shodanLink."
     Write-Host $shodanStatus
     $threatScore += 1
 
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
+    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shodanStatus" -token $caseAPItoken
     echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"                       
 } elseif ( $shodanTags -imatch "self-signed" ) {
-    $shodanStatus = "SELF SIGNED CERTIFICATE DETECTED! Shodan has reported $link's certificates as self-signed. Full details available here: $shodanLink."
+    $shodanStatus = "SELF SIGNED CERTIFICATE DETECTED! Shodan has reported $link certificates as self-signed. Full details available here: $shodanLink."
     Write-Host $shodanStatus
     $threatScore += 1
 
-    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken  
+    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shodanStatus" -token $caseAPItoken  
     echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"     
 }
 
 if ( $shodanDetails -eq $true ) {
-    $shodanStatus = "====INFO - SHODAN====\r\nInformation on $splitURL`:$shodanIP.\r\nReported location:\r\n Country: $shodanCountry"
+    $shodanStatus = "====INFO - SHODAN====\r\nInformation on $link`:$shodanIP.\r\nReported location:\r\n Country: $shodanCountry"
     if ( $shodanCity ) { $shodanStatus += "\r\n City: $shodanCity" } 
     if ( $shodanRegion ) { $shodanStatus += "\r\n Region: $shodanRegion" }
     if ( $shodanPostal ) { $shodanStatus += "\r\n Postal: $shodanPostal" }
     if ( $shodanSSL -eq $true ) { $shodanStatus += "\r\nCertificate Authority: $shodanCertIssuer.\r\nExpires on: $shodanCertExpiration" }
     if ( $shodanTags ) { $shodanStatus += "\r\nDetected tags: $shodanTags" }
     $shodanStatus += "\r\nLast scanned on $shodanScanDate."
+
+    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shodanStatus" -token $caseAPItoken
+
 }
         
-& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -command add_note -casenum $caseNumber -note "$shodanStatus" -token $caseAPItoken
-
 if ( $threatScore -le 0 ) { 
-$shodanStatus = "Shodan has determined this link is clean. Full details available here: $shodanLink."
-echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
-Write-Host $shodanStatus
+    $shodanStatus = "Shodan has determined $link is clean. Full details available here: $shodanLink."
+    echo $shodanStatus >> "$caseFolder$caseID\spam-report.txt"
+    Write-Host $shodanStatus
+    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shodanStatus" -token $caseAPItoken
 }
