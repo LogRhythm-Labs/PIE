@@ -1,9 +1,12 @@
+#====================================#
+#       Wildfire PIE plugin          #
+#         Version 0.2                #
+#        Author: Jtekt               #
+#====================================#
 #
-# Author: JTekt
-# August 2018
-# Version: 0.1
+# Licensed under the MIT License. See LICENSE file in the project root for full license information.
 #
-# Early development of Shodan integration for PIE.  Exploritory to identify potential areas of evidence collection and risk assessment acceleration.
+# Early development of Wildfire integration for PIE. 
 #   
 # Goals:
 # <In Progress> - Send MD5 or SHA256 hash to Wildfire API for results.  If results show malicious, return details.
@@ -12,13 +15,13 @@
 # <Not Started> - PIE ingestion.
 #
 
-# .\Wildfire.ps1 -key $wildfireAPI -link $link -file $file -caseID $caseID -caseFolder $caseFolder -pieFolder $pieFolder -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+# .\Wildfire.ps1 -key $wildfireAPI -checkLink $link -checkFile $file|$hash -caseID $caseID -caseFolder $caseFolder -pieFolder $pieFolder -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
 
 [CmdLetBinding()]
 param( 
     [string]$key,
-    [string]$link,
-    [string]$file,
+    [string]$checkLink,
+    [string]$checkFile,
     [string]$caseID,
     [string]$caseFolder,
     [string]$pieFolder,
@@ -27,54 +30,96 @@ param(
 )
 #Temp Variables
 $key = ''
-$hash = "dca86121cc7427e375fd24fe5871d727"
-$hash2 = "C:\hashlist.txt"
+#$hash = "dca86121cc7427e375fd24fe5871d727"
+#$checkFile = "C:\hashlist.txt"
+$checkLink = "http://paloaltonetworks.com"
 $tmpFolder = ".\"
-
-
+#if ( !$hash -eq $true ) {
+#    $temp_hash = Get-FileHash $file -Algorithm SHA256
+#    $hash = $temp_hash.hash
+#}
 
 
 # Mask errors
 $ErrorActionPreference= 'continue'
 
+
 # Global Parameters
 $IPregex='(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))'
 
-# Query DNS and obtain domain IP address
-#Get verdict - single lookup - Simple lookup
-$wfQuery = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/get/verdict" -Method Post -Body "apikey=$key;hash=$hash;format=xml"
-#Get verdict - bulk lookup - Simple lookup
-#$wfQuery = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/get/verdicts" -Method Post -Body "apikey=$key;file=$hash2"
-<#Verdict details
-The verdict element value can be one of the following:
-0 : benign
-1 : malware
-2 : grayware
--100 : pending, the sample exists, but there is currently no verdict
--101 : error
--102 : unknown, cannot find sample record in the database
--103 : invalid hash value
+if ( $checkFile ) {
+    #Get verdict - single lookup - Simple lookup
+    [xml]$wfQuery = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/get/verdict" -Method Post -Body "apikey=$key;hash=$hash;format=xml"
+    $wfVerdict = $wfQuery.wildfire.'get-verdict-info'.verdict
+    Write-Host $wfVerdict
+    switch ( $wfVerdict )
+    {
+        -103{
+            #-103 Invalid hash code submitted
+            Write-Host "Invalid hash value submitted to Palo Alto Wildfire."
+        }
+        -102{
+            #-102 Record not in database
+            Write-Host "Hash value not found within Palo Alto Wildfire database." 
+        }
+        -101{
+            #-101 Error occured with Palo Alto Wildfire API
+            Write-Host "An error occured within the Wildfire API." 
+        }
+        -100{
+            #-100 Hash is currently pending
+            WRite-Host "Submitted hash value is currently pending evaluation."
+        }
+        0{
+            #0 FIle identified as bening
+            Write-Host "Submitted hash value is confirmed bening."
+        }
+        1{
+            #1 File identified as malware
+            Write-Host "Submitted hash value is confirmed as malware."
+        }
+        2{
+            #2 File identified as grayware
+            Write-Host "Submitted hash value is confirmed as grayware."
+        }
+        default{
+            #Unknown error occured
+            Write-Host "An unknown error has occured within Wildfire.ps1."
+        }
+    }
+    if ( $wfVerdict -eq "1" -or $wfVerdict -eq "2" ) {
+        [xml]$wfQuery = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/get/report" -Method Post -Body "apikey=$key;hash=$hash;format=xml"
+        #$wfQuery.RawContent | Out-File $tmpFolder\wfAnalysis.txt
+        #[xml]$wfResults = Get-Content $tmpFolder\wfAnalysis.txt | select -Skip 7
+        #### Are there results?!####
+        ## If yes, proceed to evaluate
+        ## If no, upload file
+        #Write-Host "====================================="
+        $wfMalware = $wfQuery.wildfire.file_info.malware
+        $wfFiletype = $wfQuery.wildfire.file_info.filetype
+        $wfFileMd5 = $wfQuery.wildfire.file_info.md5
+        $wfFileSha256 = $wfQuery.wildfire.file_info.sha256
+        $wfFileSize = $wfQuery.wildfire.file_info.size
+        Write-Host "Wildfire record for $hash.  Is it malware: $wfMalware File Type: $wfFiletype File Size: $wfFileSize MD5: $wfFileMd5  SHA256: $wfFileSha256"
+        #Write-Host "*************************************"
+    }
 
-If return code is 102, submit file for evaluation.
+}
+
+#Not working
+<#
+if ( $checkLink ) {
+    Write-Host $checkLink
+    $payload = "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name=`"apikey`"\r\n\r\$key\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name=`"link`"\r\n\r\$checkLink\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name=\`format\`\r\n\r\nxml\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW--"
+    Write-Host $payload
+    $wfQuery2 = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/submit/link" -Method Post -Body $payload
+
+}
 #>
 
-#Get report - IE detailed lookup
-#$wfQuery = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/get/report" -Method Post -Body "apikey=$key;hash=$hash;format=xml"
-$wfQuery.RawContent | Out-File $tmpFolder\wfAnalysis.txt
-[xml]$wfResults = Get-Content $tmpFolder\wfAnalysis.txt | select -Skip 7
-#### Are there results?!####
-## If yes, proceed to evaluate
-## If no, upload file
-Write-Host "====================================="
-Write-Host $wfResults.wildfire.file_info.malware
-$wfMalware = $wfResults.wildfire.file_info.malware
-$wfFiletype = $wfResults.wildfire.file_info.filetype
-$wfFileMd5 = $wfResults.wildfire.file_info.md5
-$wfFileSha256 = $wfResults.wildfire.file_info.sha256
-$wfFileSize = $wfResults.wildfire.file_info.size
-Write-Host "Wildfire record for $hash.  Is it malware: $wfMalware File Type: $wfFiletype File Size: $wfFileSize MD5: $wfFileMd5  SHA256: $wfFileSha256"
-Write-Host "*************************************"
 
+
+#Old code
 
 <#
 $shodanIPQuery | Where-Object -Property $link -Match $IPregex
