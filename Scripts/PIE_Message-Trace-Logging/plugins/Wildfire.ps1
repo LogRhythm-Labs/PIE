@@ -1,6 +1,6 @@
 #====================================#
 #       Wildfire PIE plugin          #
-#         Version 0.4                #
+#         Version 0.8                #
 #        Author: Jtekt               #
 #====================================#
 #
@@ -31,11 +31,6 @@ param(
     [string]$LogRhythmHost,
     [string]$caseAPItoken
 )
-#Temp Variables
-$key = Get-Content D:\nCloud\Projects\git\wildfire\key.txt
-$tmpFolder = ".\"
-$fileName = "myworkbook.xls"
-$fileHash = "dca86121cc7427e375fd24fe5871d727"
 
 
 # Mask errors
@@ -43,36 +38,63 @@ $ErrorActionPreference= 'continue'
 
 
 # Global Parameters
-$IPregex='(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))'
 #Future use, validators
+$IPregex='(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))'
 $MD5regex='(?<Hash>([a-f0-9]{32}))'
 $SHA256regex='(?<Hash>([A-Fa-f0-9]{64}))'
-
-#Hash validation
 
 
 if ( $fileHash ) {
     #Get verdict - single lookup - Simple lookup
     [xml]$wfQuery = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/get/verdict" -Method Post -Body "apikey=$key;hash=$fileHash;format=xml"
     $wfVerdict = $wfQuery.wildfire.'get-verdict-info'.verdict
-    Write-Host $wfVerdict
     switch ( $wfVerdict )
     {
         -103{
             #-103 Invalid hash code submitted
-            Write-Host "Invalid hash value submitted to Palo Alto Wildfire."
+            Write-Verbose "Invalid hash value submitted to Palo Alto Wildfire."
+            
+            $wfStatus = "====ERROR - WILDFIRE====\r\nInvalid Hash format supplied.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nPlease check the hash format and manually submit at: https://wildfire.paloaltonetworks.com/."
+            
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
+            echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Wildfire Verdict: Invalid Hash Format Reported" >> "$caseFolder$caseID\spam-report.txt"
         }
         -102{
             #-102 Record not in database
-            Write-Host "Hash value not found within Palo Alto Wildfire database." 
+            Write-Verbose "Hash value not found within Palo Alto Wildfire database." 
+            
+            $wfStatus = "====INFO - WILDFIRE====\r\nWildfire has no data on submitted hash.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nSubmit file for Wildfire analyis at: https://wildfire.paloaltonetworks.com/."
+            
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
+            echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Wildfire Verdict: Hash not found within Wildfire database" >> "$caseFolder$caseID\spam-report.txt"
         }
         -101{
             #-101 Error occured with Palo Alto Wildfire API
-            Write-Host "An error occured within the Wildfire API." 
+            Write-Verbose "An error occured within the Wildfire API." 
+
+            $wfStatus = "====ERROR - WILDFIRE====\r\nWildfire has encountered an API error.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nRe-check file status at later time."
+            
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
+
+            echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Wildfire Verdict: An internal API error has been returned" >> "$caseFolder$caseID\spam-report.txt"
         }
         -100{
             #-100 Hash is currently pending
-            Write-Host "Submitted hash value is currently pending evaluation."
+            Write-Verbose "Submitted hash value is currently pending evaluation."
+
+            $wfStatus = "====INFO - WILDFIRE====\r\nWildfire has reported $fileName as pending.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nRe-check file status at later time."
+            
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
+
             echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
@@ -80,7 +102,12 @@ if ( $fileHash ) {
         }
         0{
             #0 FIle identified as bening
-            Write-Host "Submitted hash value is confirmed bening."
+            Write-Verbose "Submitted hash value is confirmed bening."
+            
+            $wfStatus = "====INFO - WILDFIRE====\r\nWildfire has reported $fileName as bening.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash"
+            
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
+
             echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
@@ -88,15 +115,24 @@ if ( $fileHash ) {
         }
         1{
             #1 File identified as malware
-            Write-Host "Submitted hash value is confirmed as malware."
+            Write-Verbose "Submitted hash value is confirmed as malware."
         }
         2{
             #2 File identified as grayware
-            Write-Host "Submitted hash value is confirmed as grayware."
+            Write-Verbose "Submitted hash value is confirmed as grayware."
         }
         default{
             #Unknown error occured
-            Write-Host "An unknown error has occured within Wildfire.ps1."
+            Write-Verbose "An unknown error has occured within Wildfire.ps1."
+            
+            $wfStatus = "====ERROR - WILDFIRE SCRIPT====\r\nAn unknown error has occured.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nPlease check the hash format and manually submit at: https://wildfire.paloaltonetworks.com/."
+            
+            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
+
+            echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Wildfire Verdict: An unspecified error has occured" >> "$caseFolder$caseID\spam-report.txt"
         }
     }
     if ( $wfVerdict -eq "1" -or $wfVerdict -eq "2" ) {
@@ -106,12 +142,12 @@ if ( $fileHash ) {
         $wfFileMd5 = $wfReport.wildfire.file_info.md5
         $wfFileSha256 = $wfReport.wildfire.file_info.sha256
         $wfFileSize = $wfReport.wildfire.file_info.size
-        $wfStatus = "MALICIOUS FILE DETECTED! Wildfire has reported $fileName as Malware.\r\nWildfire Information:\r\n File Type: $wfFiletype\r\n File MD5: $wfFileMd5\r\n File SHA256: $wfFileSha256\r\n File Size: $wfFileSize"
-        Write-Host $wfStatus
+        $wfStatus = "====ALERT - WILDFIRE====\r\nMALICIOUS FILE DETECTED! Wildfire has reported $fileName as Malware.\r\n\r\nWildfire Information:\r\n File Type: $wfFiletype\r\n File MD5: $wfFileMd5\r\n File SHA256: $wfFileSha256\r\n File Size: $wfFileSize"
+        Write-Verbose $wfStatus
         $threatScore += 1
 
-        #& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
-        #Write-Host "*************************************"
+        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
+
         echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
         echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
         echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
