@@ -75,8 +75,8 @@ if ( $fileHash ) {
             echo "Wildfire Verdict: Hash not found within Wildfire database" >> "$caseFolder$caseID\spam-report.txt"
         }
         -101{
-            #-101 Error occured with Palo Alto Wildfire API
-            Write-Verbose "An error occured within the Wildfire API." 
+            #-101 Error occurred with Palo Alto Wildfire API
+            Write-Verbose "An error occurred within the Wildfire API." 
 
             $wfStatus = "====ERROR - WILDFIRE====\r\nWildfire has encountered an API error.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nRe-check file status at later time."
             
@@ -101,17 +101,17 @@ if ( $fileHash ) {
             echo "Wildfire Verdict: Status Pending" >> "$caseFolder$caseID\spam-report.txt"
         }
         0{
-            #0 FIle identified as bening
-            Write-Verbose "Submitted hash value is confirmed bening."
+            #0 FIle identified as benign
+            Write-Verbose "Submitted hash value is confirmed benign."
             
-            $wfStatus = "====INFO - WILDFIRE====\r\nWildfire has reported $fileName as bening.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash"
+            $wfStatus = "====INFO - WILDFIRE====\r\nWildfire has reported $fileName as benign.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash"
             
             & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
 
             echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
-            echo "Wildfire Verdict: File Bening" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Wildfire Verdict: File Benign" >> "$caseFolder$caseID\spam-report.txt"
         }
         1{
             #1 File identified as malware
@@ -122,17 +122,17 @@ if ( $fileHash ) {
             Write-Verbose "Submitted hash value is confirmed as grayware."
         }
         default{
-            #Unknown error occured
-            Write-Verbose "An unknown error has occured within Wildfire.ps1."
+            #Unknown error occurred
+            Write-Verbose "An unknown error has occurred within Wildfire.ps1."
             
-            $wfStatus = "====ERROR - WILDFIRE SCRIPT====\r\nAn unknown error has occured.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nPlease check the hash format and manually submit at: https://wildfire.paloaltonetworks.com/."
+            $wfStatus = "====ERROR - WILDFIRE SCRIPT====\r\nAn unknown error has occurred.\r\n\r\nWildfire Information:\r\n File Name: $fileName\r\n File SHA256: $fileHash\r\n\r\nPlease check the hash format and manually submit at: https://wildfire.paloaltonetworks.com/."
             
             & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken
 
             echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
-            echo "Wildfire Verdict: An unspecified error has occured" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Wildfire Verdict: An unspecified error has occurred" >> "$caseFolder$caseID\spam-report.txt"
         }
     }
     if ( $wfVerdict -eq "1" -or $wfVerdict -eq "2" ) {
