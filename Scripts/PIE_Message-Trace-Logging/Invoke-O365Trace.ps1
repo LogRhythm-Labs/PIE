@@ -878,18 +878,20 @@ Case Folder:                 $caseID
         # SHODAN
         if ( $shodan -eq $true ) {
 
-            echo "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
-            echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+            if ( $domains.length -gt 0 ) {
+                echo "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
+                echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
 
-            $domains | ForEach-Object {
-                echo "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
+                $domains | ForEach-Object {
+                    echo "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
 
-                & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+                    & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
             
-            }
+                }
 
-            echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-            echo "" >> "$caseFolder$caseID\spam-report.txt"
+                echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+                echo "" >> "$caseFolder$caseID\spam-report.txt"
+            }
         }
 
         # OPEN DNS
@@ -1041,23 +1043,26 @@ Case Folder:                 $caseID
         # Wildfire
         if ( $wildfire -eq $true ) {
 
-            echo "Palo Alto Wildfire" >> "$caseFolder$caseID\spam-report.txt"
-            echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-            echo "" >> "$caseFolder$caseID\spam-report.txt"
+            if ( $fileHashes.Length -gt 0 ) {
 
-            $fileHashes | ForEach-Object {
-
-                $wfFName = Split-Path -Path $($_.path) -Leaf
-                echo "" >> "$caseFolder$caseID\spam-report.txt"
-                echo "Wildfire Analysis: File: $caseFolder$caseID\attachments\$wfFName Hash: $($_.hash)" >> "$caseFolder$caseID\spam-report.txt"
-                & $pieFolder\plugins\Wildfire.ps1 -key $wildfireAPI -fileHash $($_.hash) -fileName $wfFName -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+                echo "Palo Alto Wildfire" >> "$caseFolder$caseID\spam-report.txt"
+                echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
 
+                $fileHashes | ForEach-Object {
+
+                    $wfFName = Split-Path -Path $($_.path) -Leaf
+                    echo "" >> "$caseFolder$caseID\spam-report.txt"
+                    echo "Wildfire Analysis: File: $caseFolder$caseID\attachments\$wfFName Hash: $($_.hash)" >> "$caseFolder$caseID\spam-report.txt"
+                    & $pieFolder\plugins\Wildfire.ps1 -key $wildfireAPI -fileHash $($_.hash) -fileName $wfFName -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+                    echo "" >> "$caseFolder$caseID\spam-report.txt"
+
+                }
+
+                echo "" >> "$caseFolder$caseID\spam-report.txt"
+                echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+                echo "" >> "$caseFolder$caseID\spam-report.txt"
             }
-
-            echo "" >> "$caseFolder$caseID\spam-report.txt"
-            echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-            echo "" >> "$caseFolder$caseID\spam-report.txt"
         }
 
 
