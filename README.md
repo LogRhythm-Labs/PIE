@@ -41,6 +41,8 @@ Security Weekly Webcast: https://www.youtube.com/watch?v=2oGMoGr4qBI
 
 Installation Walkthrough: https://www.youtube.com/watch?v=19bHJL0g154&feature=youtu.be
 
+Configuration Guide (LogRhythm Community Access Required): https://community.logrhythm.com/t5/SIEM-articles/Phishing-Intelligence-Engine-PIE-Configuration-Guide/ta-p/39931
+
 There are multiple aspects of this framework that all work together to detect and respond to Phishing attacks:
 
 #### 1) [PIE Message Trace Logging](/Scripts/PIE_Message-Trace-Logging/)

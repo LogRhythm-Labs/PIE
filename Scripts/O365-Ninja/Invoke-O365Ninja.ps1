@@ -55,6 +55,7 @@ param(
     [switch]$appendToList,
     [switch]$checkForwards,
     [switch]$checkMemberships,
+    [switch]$auditMailboxes,
     [switch]$bypass,
     [switch]$nuke = $false
 )
@@ -118,6 +119,9 @@ USAGE:
 
     Obtain Group Memberships:
     PS C:\> Invoke-O365Ninja -checkMemberships
+    
+    Audit Mailboxes for new O365 Accounts:
+    PS C:\> Invoke-O365Ninja -auditMailboxes
 
     ************************************************************
 
@@ -501,6 +505,32 @@ if ( $auditLog ) {
         Write-Host "Target User Account Required ( -targetUser )" -ForegroundColor Red
         break;
     }
+}
+
+# ================================================================================
+# OFFICE365 ENABLE AUDITING ON MAILBOXES
+# ================================================================================
+
+if ( $auditMailboxes ) {
+
+    Write-Host ""
+    Write-Host "Checking for unaudited mailboxes, limited to 1000 results, then will attempt to enable auditing."
+    # We want to leave this at the default of 1000, and re-run auditMailboxes if needed
+    $UnauditedMailboxes=(Get-Mailbox -Filter {AuditEnabled -eq $false}).Identity
+    $UAMBCount=$UnauditedMailboxes.Count
+    
+    if ($UAMBCount -gt 0){
+        Write-Host "Attempting to enable auditing on $UAMBCount mailboxes, please wait..." -ForegroundColor Cyan
+        $UnauditedMailboxes | % { Set-Mailbox -Identity $_ -AuditDelegate SendAs,SendOnBehalf,Create,Update,SoftDelete,HardDelete -AuditEnabled $true }
+        Write-Host "Finished attempting to enable auditing on $UAMBCount mailboxes." -ForegroundColor Yellow
+    }
+    
+    if ($UAMBCount -eq 1000){    
+        Write-Host "Since the count was $UAMBCount mailboxes, execute auditMailboxes again until auditing is enabled on all mailboxes" -ForegroundColor Yellow        
+    }
+    
+    if ($UAMBCount -eq 0){Write-Host "No auditing actions to perform, all mailboxes have auditing enabled!"}
+    
 }
 
 

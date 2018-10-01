@@ -13,11 +13,11 @@
 
 INSTALL:
 
-    Review lines 43 through 89
+    Review lines 43 through 92
         Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
 
-    Review Lines 90 through 154
+    Review Lines 93 through 157
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
 
@@ -80,6 +80,9 @@ $spammerList = "List Name"
 
 # Case Folder and Logging
 $pieFolder = "C:\PIE\INSTALLATION\DIRECTORY"
+
+# Auto-auditing mailboxes. Set to $true if you'd like to automatically enable auditing on new O365 mailboxes
+$autoAuditMailboxes = $false
 
 # Case Tagging and User Assignment
 $defaultCaseTag = "phishing" # Default value - modify to match your case tagging schema. If this value does not exist, the script will not add the parameter to the case.
@@ -238,7 +241,19 @@ try {
 
 if ( $log -eq $true) {
 
-    # scrape all mail - ongiong log generation
+    if ( $autoAuditMailboxes -eq $true ) {
+        # Check for mailboxes where auditing is not enabled and is limited to 1000 results
+        $UnauditedMailboxes=(Get-Mailbox -Filter {AuditEnabled -eq $false}).Identity
+        $UAMBCount=$UnauditedMailboxes.Count
+        if ($UAMBCount -gt 0){
+            Write-Host "Attempting to enable auditing on $UAMBCount mailboxes, please wait..." -ForegroundColor Cyan
+            $UnauditedMailboxes | % { Set-Mailbox -Identity $_ -AuditDelegate SendAs,SendOnBehalf,Create,Update,SoftDelete,HardDelete -AuditEnabled $true }
+            Write-Host "Finished attempting to enable auditing on $UAMBCount mailboxes." -ForegroundColor Yellow
+        }
+        if ($UAMBCount -eq 0){} # Do nothing, all mailboxes have auditing enabled.
+    }
+    
+    # scrape all mail - ongoing log generation
     $messageTrace = Get-MessageTrace -StartDate $inceptionDate -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
     $messageTrace | Export-Csv $traceLog -NoTypeInformation -Append
     
