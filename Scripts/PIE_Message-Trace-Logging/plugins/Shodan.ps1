@@ -99,15 +99,15 @@ for($i=0; $i -le ($shodanHostInfo.data.Length-1); $i++){
     }
     #Game Details
     if ( $shodanGameDetails -eq $true) {
-		#Minecraft
+	#Minecraft
         if ( $shodanHostInfo.data[$i].product -eq "Minecraft" ) {
-			$status += "\r\n-Minecraft Server Info-\r\n"
+	    $status += "\r\n-Minecraft Server Info-\r\n"
             $status += "\r\nServer Version: $($shodanHostInfo.data[$i].minecraft.version.name)"
             $status += "\r\nServer Description: $($shodanHostInfo.data[$i].minecraft.description)"
             $status += "\r\nMax Players: $($shodanHostInfo.data[$i].minecraft.players.max)"
             $status += "\r\nCurrent Players: $($shodanHostInfo.data[$i].minecraft.players.online)"
         }
-		#Steam
+	#Steam
         if ( $($shodanHostInfo.data[$i]._shodan.module) -eq "steam-a2s" ) {
             $status += "\r\n-Steam Server Info-\r\n"
             $status += $shodanHostInfo.data | Select-Object -ExpandProperty data
