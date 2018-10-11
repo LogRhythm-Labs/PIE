@@ -6,14 +6,20 @@
 #
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
 #
-# Early development of Shodan integration for PIE.  Exploritory to identify potential areas of evidence collection and risk assessment acceleration.
+# Shodan.io integration for PIE.  
+# This plugin provides a means to increase evidence collection capability and aid the risk assessment process based on Shodan observations.
 #   
 # Goals:
 # <complete> - Collect additional evidence on link.  Geographic location, IP address, Certificate Authority & expiration.
-# <complete> - Report self-signed certificates.
-# <complete> - Initially groom to find LetsEncrypt Self-Registration certificates.  This may be a point to increase threatScore.
-# <In Progress> Explore examination of services running on host.  Example, if identifying tor/tftp/ftp or other file delivery services found in conjuction with HTTP/HTTPS, increase threatScore.
+# <complete> - Report self-signed certificates, expired, and Let's Encrypt Certificate Authorities.
+# <complete> - Parse services running on host.  
 #
+# ThreatScore is increased by each of the following:
+#     * Self-Signed Certificate Detected
+#     * Expired Certificate Detected
+#     * Let's Encrypt Certificate Authority
+#     * Anonymous FTP Login Capable
+#  
 
 # .\Shodan.ps1 -key $shodanAPI -link $splitLink -caseID $caseID -caseFolder $caseFolder -pieFolder $pieFolder -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
 
@@ -32,14 +38,13 @@ param(
 $ErrorActionPreference= 'silentlycontinue'
 
 # Global Parameters
+$threatScore = 0
+$IPregex='(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))'
+
 # Analysis and Reporting
 $shodanHostDetails = $true
 $shodanSSLDetails = $true
 $shodanGameDetails = $true
-$threatScore = 0
-$IPregex='(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))'
-# Optional information.  Will append domain information into LR case.
-$shodanDetails = $true
 
 # Query DNS and obtain domain IP address
 try {
@@ -68,6 +73,7 @@ try {
     $status = "== Shodan Scan Info ==\r\nError on API call\r\nStatus Code: $($_.Exception.Response.StatusCode.value__)\r\nStatus Description: $($_.Exception.Response.StatusDescription)"
 }
 
+#Host Details
 if ( $shodanHostDetails -eq $true ) {
     $status = "====INFO - SHODAN====\r\nInformation on $link`:$shodanIP\r\nReported location:\r\n Country: $($shodanHostInfo.country_name)"
     if ( $($shodanHostInfo.city) ) { $status += "\r\n City: $($shodanHostInfo.city)" } 
@@ -91,32 +97,42 @@ for($i=0; $i -le ($shodanHostInfo.data.Length-1); $i++){
     if ( $error ){
         $status += "\r\n$($shodanHostInfo.data[$i].data)"
     }
-    #Minecraft
+    #Game Details
     if ( $shodanGameDetails -eq $true) {
+		#Minecraft
         if ( $shodanHostInfo.data[$i].product -eq "Minecraft" ) {
+			$status += "\r\n-Minecraft Server Info-\r\n"
             $status += "\r\nServer Version: $($shodanHostInfo.data[$i].minecraft.version.name)"
             $status += "\r\nServer Description: $($shodanHostInfo.data[$i].minecraft.description)"
             $status += "\r\nMax Players: $($shodanHostInfo.data[$i].minecraft.players.max)"
             $status += "\r\nCurrent Players: $($shodanHostInfo.data[$i].minecraft.players.online)"
         }
+		#Steam
+        if ( $($shodanHostInfo.data[$i]._shodan.module) -eq "steam-a2s" ) {
+            $status += "\r\n-Steam Server Info-\r\n"
+            $status += $shodanHostInfo.data | Select-Object -ExpandProperty data
+        }
     }
     #SSL
     if ( $shodanHostInfo.data[$i].ssl ){
-        $shodanCert1 = $shodanHostInfo.data[$i] | Select-Object -ExpandProperty ssl
+        $shodanCert = $shodanHostInfo.data[$i] | Select-Object -ExpandProperty ssl
         if ( $shodanSSLDetails -eq $true) {
             $status += "\r\n\r\n-- SSL Certificate Observed --"
-            $status += "\r\nCertificate Subject: $($shodanCert1.cert.subject)"
-            $status += "\r\nCertificate SHA256: $($shodanCert1.cert.fingerprint.sha256)"
-            $status += "\r\nCertificate Issuer: $($shodanCert1.cert.issuer)"
-            $status += "\r\nCertificate Issue date: $($shodanCert1.cert.issued)"
-            $status += "\r\nCertificate Expiration date: $($shodanCert1.cert.expires)"
-            $status += "\r\nSupported Ciphers: $($shodanCert1.cipher)\r\n"
+            $subject = $shodanCert.cert.subject -replace '[{}@]', ''
+            $status += "\r\nCertificate Subject: $subject"
+            $status += "\r\nCertificate SHA256: $($shodanCert.cert.fingerprint.sha256)"
+            $issuer = $shodanCert.cert.issuer -replace '[{}@]', ''
+            $status += "\r\nCertificate Issuer: $issuer"
+            $status += "\r\nCertificate Issue date: $($shodanCert.cert.issued)"
+            $status += "\r\nCertificate Expiration date: $($shodanCert.cert.expires)"
+            $ciphers = $shodanCert.cipher -replace '[{}@]', ''
+            $status += "\r\nSupported Ciphers: $ciphers\r\n"
         }
-        if ( $($shodanCert1.cert.expired) -eq $true ) {
+        if ( $($shodanCert.cert.expired) -eq $true ) {
             $status += "\r\nALERT: Expired Certificate Detected!"
             $threatScore += 1
         }
-        if ( $($shodanCert1.cert.issuer) -imatch "Let's Encrypt" ) {
+        if ( $($shodanCert.cert.issuer) -imatch "Let's Encrypt" ) {
             $status += "\r\nALERT: Let's Encrypt Certificate Authority Detected!"
             $threatScore += 1        
         } elseif ( $($shodanHostInfo.data[$i].tags) -imatch "self-signed" ) {
