@@ -510,21 +510,31 @@ if ( $log -eq $true) {
                         $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -NE "header"
                         $headers > "$tmpFolder\headers.txt"
 
-                        #Need to get this line working.  This will enable most plugins to work.
-                        
-                        $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("") | findstr http | findstr originalsrc
+
+                        #Clear links text file
                         $null > "$tmpFolder\links.txt"
                     
-                        [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
-                    
-                        foreach ($link in $getLinks) {
-                        
-                            $link = @(@($link.Split("`"")[1]))
-                            #SafeLinks decode is not required for .eml messages
-                            $link >> "$tmpFolder\links.txt"
+						#Load links
+                        $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("") | findstr http
+
+                        #Identify Safelinks or No-Safelinks.  Does not require $safeLinks to be set to true.
+                        if ( $getLinks -like "*safelinks.protection.outlook.com*") {
+                            $getLinks = $getLinks | findstr originalsrc
+                            foreach ($link in $getLinks) {
+                                $link = @(@($link.Split("`"")[1]))
+                                $link >> "$tmpFolder\links.txt"
+                            }
+                        } else {
+                            $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("<") | findstr http
+                            foreach ($link in $getLinks) {
+                                $link >> "$tmpFolder\links.txt"
+                            }
                         }
-                        
+						
+						#Update list of unique URLs
                         $links = type "$tmpFolder\links.txt" | Sort -Unique
+						
+						#Create list of unique FQDNs
                         $domains = (Get-Content $tmpFolder\links.txt) | %{ ([System.Uri]$_).Host } | Select-Object -Unique
 
                         $countLinks = @(@(Get-Content "$tmpFolder\links.txt" | Measure-Object -Line | Select-Object Lines | findstr -v "Lines -") -replace "`n|`r").Trim()
