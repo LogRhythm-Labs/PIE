@@ -180,10 +180,11 @@ $log = $true
 # Date Variables
 $date = Get-Date
 $oldAF = (Get-Date).AddDays(-10)
+$96Hours = (Get-Date).AddHours(-96)
 $48Hours = (Get-Date).AddHours(-48)
 $24Hours = (Get-Date).AddHours(-24)
-$inceptionDate = (Get-Date).AddMinutes(-6)
-$phishDate = (Get-Date).AddMinutes(-7)
+$inceptionDate = (Get-Date).AddMinutes(-30)
+$phishDate = (Get-Date).AddMinutes(-31)
 $day = Get-Date -Format MM-dd-yyyy
 
 # Email Parsing Varibles
@@ -393,7 +394,7 @@ if ( $log -eq $true) {
                 }
 
                 $directoryInfo = Get-ChildItem $tmpFolder | findstr "\.msg \.eml" | Measure-Object
-                Write-Host "directoryInfo.count: $($directoryInfo.count)"
+
             if ( $directoryInfo.count -gt 0 ) {
             
                 $attachments = @(@(ls $tmpFolder).Name)
@@ -503,18 +504,24 @@ if ( $log -eq $true) {
                 } elseif ( ($attachments -like "*.eml*") )  {
                     foreach($attachment in $attachments) {
                         $msg = Load-EmlFile("$tmpFolder$attachment")
-                        
+
                         $subject = $msg.Subject
-                        $messageBody = $msg.HTMLBody
 
-                        $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -NE "header"
+                        #HTML Message Body
+                        #$messageBody = $msg.HTMLBody
+                        #Plain text Message Body
+                        $body = $msg.BodyPart.Fields | select Name, Value | Where-Object name -EQ "urn:schemas:httpmail:textdescription"
+                        $messageBody = $body.Value
+
+
+                        #Headers
+                        $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -Like "*header*"
                         $headers > "$tmpFolder\headers.txt"
-
-
-                        #Clear links text file
+						
+						#Clear links text file
                         $null > "$tmpFolder\links.txt"
-                    
-						#Load links
+						
+                        #Load links
                         $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("") | findstr http
 
                         #Identify Safelinks or No-Safelinks.  Does not require $safeLinks to be set to true.
@@ -567,7 +574,7 @@ if ( $log -eq $true) {
                         
                             # Get the filename and location
                             #EH - This needs to be tested with .eml and attachments
-                            <#
+
                             $attachedFileName = @(@($msg.Attachments | Select-Object Filename | findstr -v "FileName -") -replace "`n|`r").Trim() -replace '\s',''
                             $msg.attachments|foreach {
                                 $phishingAttachment = $_.filename
@@ -590,7 +597,6 @@ if ( $log -eq $true) {
                                     }
                                 }
                             }
-                            #>
                         }
 
                         # Clean Up the SPAM
@@ -623,6 +629,7 @@ if ( $log -eq $true) {
                     #$endUserLastName = $endUserName.Split(".")[1]
                     #Format 2 - FLastname@example.com
                     #Add in detection of numbers of tail, and remove
+                    #Format 3 - FirstnameLastname@example.com ??
                     $endUserLastName = $endUserName.substring(1) -replace '[^a-zA-Z-]',''
                     #******EH Debug
                     Write-Host "endUserName: $endUserName endUserLastName: $endUserLastName"
@@ -652,11 +659,10 @@ if ( $log -eq $true) {
                     $spammer = type $analysisLog | ForEach-Object { $_.Split(",")[2]  } | Sort | Get-Unique | findstr "@" | findstr -v "$companyDomain"
                     $spammer = $spammer.Split('"')[1] | Sort | Get-Unique
                 }
-                #>
 
                 # Pull more messages if the sender cannot be found (often happens when internal messages are reported)
                 if (-Not $spammer.Contains("@") -eq $true) {
-            
+                    Write-Host "L651 - Spammer not found, looking for more."
                     sleep 10
                     echo $null > $analysisLog
                     $companyDomain = $socMailbox.Split("@")[1]
@@ -726,14 +732,10 @@ if ( $log -eq $true) {
 
                 # Gather and count evidence
                 if ( $spammer.Contains("@") -eq $true) {
-                    sleep 10
-                    Get-MessageTrace -SenderAddress $spammer -StartDate $48Hours -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Export-Csv $analysisLog -NoTypeInformation
+                    sleep 5
+                    Get-MessageTrace -SenderAddress $spammer -StartDate $96Hours -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Export-Csv $analysisLog -NoTypeInformation
                 }
 
-                    
-                    
-                    
-                    
                 #Update here to remove onmicrosoft.com addresses for recipients
                 $recipients = Get-Content $analysisLog | ForEach-Object { $_.split(",")[3] }
                 $recipients = $recipients -replace '"', "" | Sort | Get-Unique | findstr -v "RecipientAddress"
@@ -812,11 +814,11 @@ Case Folder:                 $caseID
 # ================================================================================
 #
                 if ( $spammer.Contains("@") -eq $true) {
-                    $caseSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours."
+                    $caseSummary = "Phishing email from $spammer was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 96 hours."
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -createCase "Phishing : $spammerName [at] $spammerDomain" -priority 3 -summary "$caseSummary" -token $caseAPItoken
                     sleep 5
                 } else {
-                    $caseSummary = "Phishing email was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 48 hours."
+                    $caseSummary = "Phishing email was reported on $date by $reportedBy. The subject of the email is ($subject). Initial analysis shows that $messageCount user(s) received this email in the past 96 hours."
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -createCase "Phishing Message Reported" -priority 3 -summary "$caseSummary" -token $caseAPItoken
                 }
                 $caseNumber = Get-Content "$pieFolder\plugins\case.txt"
@@ -858,6 +860,18 @@ Case Folder:                 $caseID
                 # Recipients
                 $messageRecipients = (Get-Content "$caseFolder$caseID\recipients.txt") -join ", "
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Email Recipients: $messageRecipients" -token $caseAPItoken
+
+                # Copy E-mail Message text body to case
+                if ( $messageBody ) {
+                    $caseMessageBody = $($messageBody.Replace("`r`n","\r\n"))
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Email Message Body:\r\n$caseMessageBody" -token $caseAPItoken
+                }
+
+                # Observed Links
+                if ( $links) {
+                    $messageLinks= (Get-Content "$caseFolder$caseID\links.txt") -join "\r\n"
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Links:\r\n$messageLinks" -token $caseAPItoken
+                }
 #>
 
 # ================================================================================
@@ -968,7 +982,8 @@ Case Folder:                 $caseID
                         $sucuriAnalysis = iwr "https://sitecheck.sucuri.net/api/v2/?scan=$_&json"
                         $sucuriAnalysis.RawContent | Out-File $tmpFolder\sucuriAnalysis.txt
 
-                        $sucuriResults = Get-Content $tmpFolder\sucuriAnalysis.txt | select -Skip 12 | ConvertFrom-Json
+                        $skipLines = Get-Content $tmpFolder\sucuriAnalysis.txt | Measure-Object -Line
+                        $sucuriResults = Get-Content $tmpFolder\sucuriAnalysis.txt | select -Skip $skipLines.Lines | ConvertFrom-Json
                         $isitblacklisted = $sucuriResults.BLACKLIST.WARN | Select-String -Pattern 'blacklist'
                         if ( !$isitblacklisted ) { 
                             $isitblacklisted = $sucuriResults.MALWARE.NOTIFICATIONS | Select-Object -Property 'Blacklist'
@@ -1449,7 +1464,7 @@ Case Folder:                 $caseID
                 }
                 #>
         
-                <#
+                
                 # AUTO QUARANTINE ACTIONS
                 if ( $autoQuarantine -eq $true ) {
 
@@ -1521,15 +1536,9 @@ Case Folder:                 $caseID
                 $hostname = hostname
                 $networkShare = "\\\\$hostname\\PIE\\cases\\$caseID\\"
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Case Details: $networkShare" -token $caseAPItoken
-                #>
             }
-            
-            #>
-
-        
         }
     }
-    Write-Host "Fin - newReports"
 }
 
 # ================================================================================

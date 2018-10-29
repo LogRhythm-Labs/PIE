@@ -1,5 +1,5 @@
 PIE 3.0 (Pre-Release) - Change Notes
-Date: 10.24.2018
+Date: 10.29.2018
 
 COMPLETED:
 *Removed 5 minute runtime requirement.  Invoke-O365Trace.ps1 can be executed at any interval.  
@@ -11,6 +11,20 @@ COMPLETED:
 
 *Added support to filter out user@example.onmicrosoft.com from message counts.
 ** Configuration line 93 enables users to set if you want to include or exclude counts that contain *onmicrosoft.com.
+
+*Updated gather and count evidence to 96 hours.
+** Supports users reporting e-mails sent over a weekend period.
+
+*Added e-mail message text body to case notes.
+** Allows review of message contents from within Web Console.
+
+*Added e-mail links to case notes.  
+** Allows for easier review of all links contained within the e-mail.
+
+Bugfixes:
+
+Sucuri
+*Fixed bug where results returned contained different number of header lines preventing JSON value import
 
 TO-DO:
 Internal Organization E-mail Address Template Config:
