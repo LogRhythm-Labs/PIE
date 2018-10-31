@@ -126,6 +126,10 @@ $openDNSkey =""
 $virusTotal = $false
 $virusTotalAPI = ""
 
+# URL Scan
+$urlscan = $false
+$urlscanAPI = ""
+
 # URL Void
 $urlVoid = $false
 $urlVoidIdentifier = ""
@@ -271,7 +275,6 @@ if ( $log -eq $true) {
     sleep 10
     $comp1 = Get-Content $phishLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
     #$phishTrace = Get-MessageTrace -RecipientAddress $socMailbox -StartDate "$inceptionDate" -EndDate "$date" -Status Delivered | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
-
     $phishTrace = Get-MessageTrace -RecipientAddress $socMailbox -Status Delivered | Select MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID | Sort-Object Received
     $phishTrace | Export-Csv $tmpLog -NoTypeInformation
     $comp2 = Get-Content $tmpLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
@@ -323,8 +326,30 @@ if ( $log -eq $true) {
             }
         }
 
-        $newReports | ForEach-Object {
+        # Define file hashing function
+        function Get-Hash(
+            [System.IO.FileInfo] $file = $(Throw 'Usage: Get-Hash [System.IO.FileInfo]'), 
+            [String] $hashType = 'sha256')
+        {
+            $stream = $null;  
+            [string] $result = $null;
+            $hashAlgorithm = [System.Security.Cryptography.HashAlgorithm]::Create($hashType )
+            $stream = $file.OpenRead();
+            $hashByteArray = $hashAlgorithm.ComputeHash($stream);
+            $stream.Close();
 
+            trap {
+            if ($stream -ne $null) { $stream.Close(); }
+            break;
+            }
+
+            # Convert the hash to Hex
+            $hashByteArray | foreach { $result += $_.ToString("X2") }
+            return $result
+        }
+
+        $newReports | ForEach-Object {
+            #echo
             echo "`"$($_.MessageTraceID)`",`"$($_.Received)`",`"$($_.SenderAddress)`",`"$($_.RecipientAddress)`",`"$($_.FromIP)`",`"$($_.ToIP)`",`"$($_.Subject)`",`"$($_.Status)`",`"$($_.Size)`",`"$($_.MessageID)`"" | Out-File $phishLog -Encoding utf8 -Append
             # Track the user who reported the message
             $reportedBy = $($_.SenderAddress)
@@ -381,16 +406,20 @@ if ( $log -eq $true) {
                             Write-Host "File name: $($_.filename)"
                             $attachment = $_.filename
                             $a = $_.filename
+                            $b += @($tmpFolder+$a)
                             If (-Not ($a -match $boringFilesRegex)) {
                                 $_.SaveAsFile((Join-Path $tmpFolder $a))
-                                
                             }
                         }
+                        foreach ($file in $b ){
+                            $hashes += @(Get-FileHash -Path $b -Algorithm SHA256)
+                        }
                         $attachmentFull = $tmpFolder + $a
-
+                        Write-Host "L400 - fileHashes - $hashes"
                         $MoveTarget = $inbox.Folders.item("COMPLETED")
                         [void]$message.Move($MoveTarget) 
                     }
+                    
                 }
 
                 $directoryInfo = Get-ChildItem $tmpFolder | findstr "\.msg \.eml" | Measure-Object
@@ -502,114 +531,135 @@ if ( $log -eq $true) {
                         $spammerDisplayName = $msg.SenderName
                     }
                 } elseif ( ($attachments -like "*.eml*") )  {
-                    foreach($attachment in $attachments) {
-                        $msg = Load-EmlFile("$tmpFolder$attachment")
+                    $emlAttachment = $attachments -like "*.eml*"
+                    Write-Host "L494 - Attachment: $emlAttachments"
+                    $msg = Load-EmlFile("$tmpFolder$emlAttachment ")
 
-                        $subject = $msg.Subject
+                    $subject = $msg.Subject
 
-                        #HTML Message Body
-                        #$messageBody = $msg.HTMLBody
-                        #Plain text Message Body
-                        $body = $msg.BodyPart.Fields | select Name, Value | Where-Object name -EQ "urn:schemas:httpmail:textdescription"
-                        $messageBody = $body.Value
+                    #HTML Message Body
+                    #$messageBody = $msg.HTMLBody
+                    #Plain text Message Body
+                    $body = $msg.BodyPart.Fields | select Name, Value | Where-Object name -EQ "urn:schemas:httpmail:textdescription"
+                    $messageBody = $body.Value
 
 
-                        #Headers
-                        $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -Like "*header*"
-                        $headers > "$tmpFolder\headers.txt"
+                    #Headers
+                    $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -Like "*header*"
+                    $headers > "$tmpFolder\headers.txt"
 						
-						#Clear links text file
-                        $null > "$tmpFolder\links.txt"
+					#Clear links text file
+                    $null > "$tmpFolder\links.txt"
 						
-                        #Load links
+                    #Load links
+                    #Check if HTML Body exists else populate links from Text Body
+                    if ( $($msg.HTMLBody.Length -gt 0) ) {
                         $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("") | findstr http
+                    } 
+                    else {
+                        $info = $msg.TextBody
+                        $getLinks = $URLregex.Matches($($info)).Value.Split("") | findstr http
+                    }
 
-                        #Identify Safelinks or No-Safelinks.  Does not require $safeLinks to be set to true.
-                        if ( $getLinks -like "*safelinks.protection.outlook.com*") {
-                            $getLinks = $getLinks | findstr originalsrc
-                            foreach ($link in $getLinks) {
-                                $link = @(@($link.Split("`"")[1]))
-                                $link >> "$tmpFolder\links.txt"
-                            }
-                        } else {
-                            $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("<") | findstr http
-                            foreach ($link in $getLinks) {
-                                $link >> "$tmpFolder\links.txt"
-                            }
+                    #Identify Safelinks or No-Safelinks.  
+                    if ( $getLinks -like "*safelinks.protection.outlook.com*" -and $getLinks -like "*originalsrc*") {
+                        $getLinks = $getLinks | findstr originalsrc
+                        foreach ($link in $getLinks) {
+                            $link = @(@($link.Split("`"")[1]))
+                            $link >> "$tmpFolder\links.txt"
                         }
-						
-						#Update list of unique URLs
-                        $links = type "$tmpFolder\links.txt" | Sort -Unique
-						
-						#Create list of unique FQDNs
-                        $domains = (Get-Content $tmpFolder\links.txt) | %{ ([System.Uri]$_).Host } | Select-Object -Unique
+                    } elseif ( $getLinks -like "*safelinks.protection.outlook.com*" ){
+                        #decode safelinks
+                        if ($safeLinks -eq $true) {
+                            [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
+                            foreach ($link in $getLinks) {                        
+                                [string[]] $urlParts = $link.Split("?")[1]
+                                [string[]] $linkParams = $urlParts.Split("&")
 
-                        $countLinks = @(@(Get-Content "$tmpFolder\links.txt" | Measure-Object -Line | Select-Object Lines | findstr -v "Lines -") -replace "`n|`r").Trim()
-                    
-                        $attachmentCount = $msg.Attachments.Count
-
-                        if ( $attachmentCount -gt 0 ) {
-
-                            # Define file hashing function
-                            function Get-Hash(
-                                [System.IO.FileInfo] $file = $(Throw 'Usage: Get-Hash [System.IO.FileInfo]'), 
-                                [String] $hashType = 'sha256')
-                            {
-                              $stream = $null;  
-                              [string] $result = $null;
-                              $hashAlgorithm = [System.Security.Cryptography.HashAlgorithm]::Create($hashType )
-                              $stream = $file.OpenRead();
-                              $hashByteArray = $hashAlgorithm.ComputeHash($stream);
-                              $stream.Close();
-
-                              trap {
-                                if ($stream -ne $null) { $stream.Close(); }
-                                break;
-                              }
-
-                              # Convert the hash to Hex
-                              $hashByteArray | foreach { $result += $_.ToString("X2") }
-                              return $result
-                            }
+                                for ($n=0; $n -lt $linkParams.Length; $n++) {
                         
-                            # Get the filename and location
-                            #EH - This needs to be tested with .eml and attachments
-
-                            $attachedFileName = @(@($msg.Attachments | Select-Object Filename | findstr -v "FileName -") -replace "`n|`r").Trim() -replace '\s',''
-                            $msg.attachments|foreach {
-                                $phishingAttachment = $_.filename
-                                If ($phishingAttachment -match $interestingFilesRegex) {
-                                    $_.saveasfile((Join-Path $tmpFolder + "\attachments\" + $phishingAttachment))
-
-                                    # Actions
-                                
-                                    # VirusTotal
-                                    if ( $virusTotal -eq $true ) {
-                                        $VirusTotalResults = & $pieFolder\plugins\VirusTotal-PIE.ps1 -file "$tmpFolder\attachments\$phishingAttachment" -VTApiKey "$virusTotalAPI"
-                                    
-                                        $VirusTotalFlagged = $VirusTotalResults | findstr flagged
-
-                                        $VirusTotalSHA256 = $VirusTotalResults | findstr SHA256
-                                        $VirusTotalSHA256 = @($VirusTotalSHA256.Split("+")[1]).Trim()
-
-                                        $VirusTotalLink = $VirusTotalResults | findstr Link
-                                        $VirusTotalLink = @($VirusTotalLink.Split("+")[1]).Trim()
+                                    [string[]] $namVal = $linkParams[$n].Split("=")
+                        
+                                    if($namVal[0] -eq "url") {
+                        
+                                    $encodedLink = $namVal[1]
+                                    break
                                     }
                                 }
+                            $link = [System.Web.HttpUtility]::UrlDecode($encodedLink)
+                            $link >> "$tmpFolder\links.txt"
                             }
                         }
-
-                        # Clean Up the SPAM
-                        #$MoveTarget = $inbox.Folders.item("SPAM")
-                        #[void]$msg.Move($MoveTarget)
-                        $spammer = $msg.From.Split("<").Split(">")[1]
-                        $spammerDisplayName = $msg.From.Split("<").Split(">")[0]
+                    }else {
+                        $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("<") | findstr http
+                        $getLinks = $URLregex.Matches($getLinks).value.split(" ") | findstr http
+                        foreach ($link in $getLinks) {
+                            $link >> "$tmpFolder\links.txt"
+                        }
+    
                     }
+                    #Remove empty lines from links.txt
+                    (Get-Content $tmpFolder\links.txt) | ? {$_.trim() -ne "" } | set-content $tmpFolder\links.txt
+		
+	
+					#Update list of unique URLs
+                    $links = type "$tmpFolder\links.txt" | Sort -Unique
+						
+					#Create list of unique FQDNs
+                    $domains = (Get-Content $tmpFolder\links.txt) | %{ ([System.Uri]$_).Host } | Select-Object -Unique
+
+                    $countLinks = @(@(Get-Content "$tmpFolder\links.txt" | Measure-Object -Line | Select-Object Lines | findstr -v "Lines -") -replace "`n|`r").Trim()
+                    
+                    $attachmentCount = $msg.Attachments.Count
+                    Write-Host "L541 - msg.AttachmentCount: $msg.Attachments.Count"
+                    Write-Host "L541 - attachmentCount: $attachmentCount"
+
+
+                    if ( $attachmentCount -gt 0 ) {                     
+                        # Get the filename and location
+                        #EH - This needs to be tested with .eml and attachments
+
+                        $attachedFileName = @(@($msg.Attachments | Select-Object Filename | findstr -v "FileName -") -replace "`n|`r").Trim() -replace '\s',''
+                        Write-Host "L571 - attachedFileName: $attachedFileName"
+                        $msg.attachments|foreach {
+                            $phishingAttachment = $_.filename
+                            Write-Host "L574 - phishingAttachment: $phishingAttachment"
+                            #Is this needed??
+                            <#If ($phishingAttachment -match $interestingFilesRegex) {
+                                Write-Host "L578 - $_.saveasfile((Join-Path $tmpFolder + `"\attachments\`" + $phishingAttachment))"
+                                Copy-Item $tmpFolder$phishingAttachment  -Destination "$tmpFolder\attachments\"
+                                #$_.saveasfile((Join-Path $tmpFolder + "\attachments\" + $phishingAttachment))
+
+                                # Actions
+                                
+                                # VirusTotal
+                                if ( $virusTotal -eq $true ) {
+                                    $VirusTotalResults = & $pieFolder\plugins\VirusTotal-PIE.ps1 -file "$tmpFolder\attachments\$phishingAttachment" -VTApiKey "$virusTotalAPI"
+                                    
+                                    $VirusTotalFlagged = $VirusTotalResults | findstr flagged
+
+                                    $VirusTotalSHA256 = $VirusTotalResults | findstr SHA256
+                                    $VirusTotalSHA256 = @($VirusTotalSHA256.Split("+")[1]).Trim()
+
+                                    $VirusTotalLink = $VirusTotalResults | findstr Link
+                                    $VirusTotalLink = @($VirusTotalLink.Split("+")[1]).Trim()
+                                }
+                            }#>
+                        }
+                    }
+
+                    # Clean Up the SPAM
+                    #$MoveTarget = $inbox.Folders.item("SPAM")
+                    #[void]$msg.Move($MoveTarget)
+                    $spammer = $msg.From.Split("<").Split(">")[1]
+                    $spammerDisplayName = $msg.From.Split("<").Split(">")[0]
+                    Write-Host "L592 Spammer: $spammer  SpammerDisplayName: $spammerDisplayName"
+                    
                 }
                 
 
             } else {
-            
+                    Write-Host "L 598 - Else block hit for non-msg and non-eml."
                     $subject = $msubject
                     if ($msubject.Contains("FW:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
                     if ($msubject.Contains("Fw:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
@@ -621,7 +671,7 @@ if ( $log -eq $true) {
                     if ($msubject.Contains("Re:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
                     if ($msubject.Contains("re:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
                     #******EH Debug
-                    Write-Host "Subject info 1: $subject"
+                    Write-Host "L610 - Subject info 1: $subject"
             
                     $endUserName = $reportedBy.Split("@")[0]
                     #IDEA - Add config option to support these methods
@@ -689,13 +739,16 @@ if ( $log -eq $true) {
                     $caseID = echo $caseID"_Sent-as-Fwd"
                 }
                 mkdir $caseFolder$caseID
+                # Support adding Network Share Location to the Case
+                $hostname = hostname
+                $networkShare = "\\\\$hostname\\PIE\\cases\\$caseID\\"
 
                 # Check for Attachments
                 if ($attachmentCount -gt 0) {
                     mkdir "$caseFolder$caseID\attachments\"
                     $msubject = $msg.subject 
                     $mBody = $msg.body 
-
+                    <# Is this needed??
                     $msg.attachments|foreach { 
                         $attachment = $_.filename 
                         $a = $_.filename 
@@ -703,8 +756,8 @@ if ( $log -eq $true) {
                             $_.saveasfile((Join-Path $tmpFolder $a)) 
                             $fileHashes += @(Get-FileHash $tmpFolder$a -Algorithm SHA256)
                         }
-                    }
-                    $attachmentFull = "$caseFolder$caseID\attachments\" + $a
+                    }#>
+                    #$attachmentFull = "$caseFolder$caseID\attachments\" + $a
             
                     $files = $true
 
@@ -1023,6 +1076,27 @@ Case Folder:                 $caseID
 
                         Remove-Item -Path $tmpFolder\sucuriAnalysis.txt
                     }
+                }
+
+                # URLSCAN
+                if ( $urlscan -eq $true ) {
+
+			        if ( $links.length -gt 0 ) {
+			
+				        echo "urlscan.io" >> "$caseFolder$caseID\spam-report.txt"
+				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+
+				        $links | ForEach-Object {
+
+					        & $pieFolder\plugins\URLScan.ps1 -key $urlscanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken -networkShare $networkShare
+
+				        }
+
+				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+				        echo "" >> "$caseFolder$caseID\spam-report.txt"
+                        Remove-Item -Path $tmpFolder\urlscanAnalysis.txt
+                        Remove-Item -Path $tmpFolder\urlscanRequest.txt
+			        }
                 }
 
                 # DOMAIN TOOLS
@@ -1532,11 +1606,45 @@ Case Folder:                 $caseID
                 echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                 echo "" >> "$caseFolder$caseID\spam-report.txt"
 
-                # Add Network Share Location to the Case
-                $hostname = hostname
-                $networkShare = "\\\\$hostname\\PIE\\cases\\$caseID\\"
+                
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Case Details: $networkShare" -token $caseAPItoken
             }
+            #Cleanup Variables prior to next evaluation
+            $reportedBy = $null
+            $reportedSubject = $null
+			$endUserName = $null
+			$endUserLastName = $null
+			$subjectQuery = $null
+			$searchMailboxResults = $null
+			$targetFolder = $null
+			$outlookAnalysisFolder = $null
+			$companyDomain = $null
+			$spammer = $null
+			$spammerDisplayName = $null
+			$message = $null
+			$msg = $null
+			$msubject = $null
+			$subject = $null
+			$subjects = $null
+			$recipients = $null
+			$messageCount = $null
+			$deliveredMessageCount = $null
+			$failedMessageCount = $null
+			$mBody = $null
+			$messageBody = $null
+			$headers = $null
+			$getLinks = $null
+			$links = $null
+			$domains = $null
+			$countLinks = $null
+			$attachmentCount = $null
+			$attachmentFull = $null
+			$attachment = $null
+			$attachments = $null
+			$phishingAttachment = $null
+			$directoryInfo = $null
+			$caseID = $null
+			$summary = $null
         }
     }
 }
