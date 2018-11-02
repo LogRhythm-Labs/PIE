@@ -37,8 +37,8 @@ $banner = @"
 "@
 
 # Mask errors
-$ErrorActionPreference= 'silentlycontinue'
-
+$ErrorActionPreference= 'continue'
+$VerbosePreference= 'continue'
 
 # ================================================================================
 # DEFINE GLOBAL PARAMETERS AND CAPTURE CREDENTIALS
@@ -248,23 +248,13 @@ try {
 # ================================================================================
 
 if ( $log -eq $true) {
-
-	if ( $autoAuditMailboxes -eq $true ) {
-        # Check for mailboxes where auditing is not enabled and is limited to 1000 results
-        $UnauditedMailboxes=(Get-Mailbox -Filter {AuditEnabled -eq $false}).Identity
-        $UAMBCount=$UnauditedMailboxes.Count
-        if ($UAMBCount -gt 0){
-            Write-Host "Attempting to enable auditing on $UAMBCount mailboxes, please wait..." -ForegroundColor Cyan
-            $UnauditedMailboxes | % { Set-Mailbox -Identity $_ -AuditDelegate SendAs,SendOnBehalf,Create,Update,SoftDelete,HardDelete -AuditEnabled $true }
-            Write-Host "Finished attempting to enable auditing on $UAMBCount mailboxes." -ForegroundColor Yellow
-        }
-        if ($UAMBCount -eq 0){} # Do nothing, all mailboxes have auditing enabled.
+    #Create phishLog if file does not exist.
+    if ( $(Test-Path $phishLog -PathType Leaf) -eq $false ) {
+        Set-Content $phishLog -Value "MessageTraceId,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageId"
     }
-	
-    # scrape all mail - ongiong log generation
 
+    # scrape all mail - ongiong log generation
     $messageTrace = Get-MessageTrace -StartDate "$inceptionDate" -EndDate "$date" | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
-    
     $messageTrace | Export-Csv $traceLog -NoTypeInformation -Append
     
     # scrape outbound spam tracking logs
@@ -280,13 +270,13 @@ if ( $log -eq $true) {
     $comp2 = Get-Content $tmpLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
     if ((get-item $tmpLog).Length -gt 0) {
         $newReports = Compare-Object $comp1 $comp2 -Property MessageTraceID -PassThru -IncludeEqual | Where-Object {$_.SideIndicator -eq '=>' } | Select-Object MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID
+        Write-Verbose "L268 - newReports: $($newReports.SenderAddress)"
     } else {
         $newReports = $null
         Write-Host "No phishing e-mails reported."
     }
     if ($newReports -ne $null) {
 
-        Write-Host "1"
         # Connect to local inbox and check for new mail
         $outlookInbox = 6
         $outlook = new-object -com outlook.application
@@ -354,6 +344,7 @@ if ( $log -eq $true) {
             # Track the user who reported the message
             $reportedBy = $($_.SenderAddress)
             $reportedSubject = $($_.Subject)
+            Write-Verbose "L348 - reportedBy: $reportedBy  reportedSubject: $reportedSubject"
 
             # AutoQuarantinebySubject
             if ( $subjectAutoQuarantine -eq $true ) {
@@ -397,13 +388,12 @@ if ( $log -eq $true) {
                 # Extract reported messages
                 foreach($message in $messages){
                     if ($($message.subject) -eq $reportedSubject) {
-                        
                         $msubject = $message.subject
                         $mBody = $message.body
 
                         $message.attachments|foreach {
                             #*******EH Debug
-                            Write-Host "File name: $($_.filename)"
+                            Write-Verbose "File name: $($_.filename)"
                             $attachment = $_.filename
                             $a = $_.filename
                             $b += @($tmpFolder+$a)
@@ -415,7 +405,7 @@ if ( $log -eq $true) {
                             $hashes += @(Get-FileHash -Path $b -Algorithm SHA256)
                         }
                         $attachmentFull = $tmpFolder + $a
-                        Write-Host "L400 - fileHashes - $hashes"
+                        Write-Verbose "L407 - fileHashes - $hashes"
                         $MoveTarget = $inbox.Folders.item("COMPLETED")
                         [void]$message.Move($MoveTarget) 
                     }
@@ -427,11 +417,11 @@ if ( $log -eq $true) {
             if ( $directoryInfo.count -gt 0 ) {
             
                 $attachments = @(@(ls $tmpFolder).Name)
+                Write-Verbose "L390 - Attachments: $attachments"
 
                 if ( ($attachments -like "*.msg*") )  {
                     foreach($attachment in $attachments) {
-                        Write-Host "Attachment loop"
-                        Write-Host $tmpFolder$attachment
+                        Write-Verbose "L425 - Attachment loop.  Attachment: $tmpFolder$attachment"
                         $msg = $outlook.Session.OpenSharedItem("$tmpFolder$attachment")
 
                         $subject = $msg.ConversationTopic
@@ -476,29 +466,7 @@ if ( $log -eq $true) {
                         $attachmentCount = $msg.Attachments.Count
 
                         if ( $attachmentCount -gt 0 ) {
-
-                            # Define file hashing function
-                            function Get-Hash(
-                                [System.IO.FileInfo] $file = $(Throw 'Usage: Get-Hash [System.IO.FileInfo]'), 
-                                [String] $hashType = 'sha256')
-                            {
-                              $stream = $null;  
-                              [string] $result = $null;
-                              $hashAlgorithm = [System.Security.Cryptography.HashAlgorithm]::Create($hashType )
-                              $stream = $file.OpenRead();
-                              $hashByteArray = $hashAlgorithm.ComputeHash($stream);
-                              $stream.Close();
-
-                              trap {
-                                if ($stream -ne $null) { $stream.Close(); }
-                                break;
-                              }
-
-                              # Convert the hash to Hex
-                              $hashByteArray | foreach { $result += $_.ToString("X2") }
-                              return $result
-                            }
-                        
+                 
                             # Get the filename and location
                             $attachedFileName = @(@($msg.Attachments | Select-Object Filename | findstr -v "FileName -") -replace "`n|`r").Trim() -replace '\s',''
                             $msg.attachments|foreach {
@@ -532,7 +500,7 @@ if ( $log -eq $true) {
                     }
                 } elseif ( ($attachments -like "*.eml*") )  {
                     $emlAttachment = $attachments -like "*.eml*"
-                    Write-Host "L494 - Attachment: $emlAttachments"
+                    Write-Verbose "L494 - Attachment: $emlAttachments"
                     $msg = Load-EmlFile("$tmpFolder$emlAttachment ")
 
                     $subject = $msg.Subject
@@ -611,8 +579,8 @@ if ( $log -eq $true) {
                     $countLinks = @(@(Get-Content "$tmpFolder\links.txt" | Measure-Object -Line | Select-Object Lines | findstr -v "Lines -") -replace "`n|`r").Trim()
                     
                     $attachmentCount = $msg.Attachments.Count
-                    Write-Host "L541 - msg.AttachmentCount: $msg.Attachments.Count"
-                    Write-Host "L541 - attachmentCount: $attachmentCount"
+                    Write-Verbose "L541 - msg.AttachmentCount: $msg.Attachments.Count"
+                    Write-Verbose "L541 - attachmentCount: $attachmentCount"
 
 
                     if ( $attachmentCount -gt 0 ) {                     
@@ -620,10 +588,10 @@ if ( $log -eq $true) {
                         #EH - This needs to be tested with .eml and attachments
 
                         $attachedFileName = @(@($msg.Attachments | Select-Object Filename | findstr -v "FileName -") -replace "`n|`r").Trim() -replace '\s',''
-                        Write-Host "L571 - attachedFileName: $attachedFileName"
+                        Write-Verbose "L571 - attachedFileName: $attachedFileName"
                         $msg.attachments|foreach {
                             $phishingAttachment = $_.filename
-                            Write-Host "L574 - phishingAttachment: $phishingAttachment"
+                            Write-Verbose "L574 - phishingAttachment: $phishingAttachment"
                             #Is this needed??
                             <#If ($phishingAttachment -match $interestingFilesRegex) {
                                 Write-Host "L578 - $_.saveasfile((Join-Path $tmpFolder + `"\attachments\`" + $phishingAttachment))"
@@ -653,13 +621,13 @@ if ( $log -eq $true) {
                     #[void]$msg.Move($MoveTarget)
                     $spammer = $msg.From.Split("<").Split(">")[1]
                     $spammerDisplayName = $msg.From.Split("<").Split(">")[0]
-                    Write-Host "L592 Spammer: $spammer  SpammerDisplayName: $spammerDisplayName"
+                    Write-Verbose "L592 Spammer: $spammer  SpammerDisplayName: $spammerDisplayName"
                     
                 }
                 
 
             } else {
-                    Write-Host "L 598 - Else block hit for non-msg and non-eml."
+                    Write-Verbose "L 598 - Else block hit for non-msg and non-eml."
                     $subject = $msubject
                     if ($msubject.Contains("FW:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
                     if ($msubject.Contains("Fw:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
@@ -671,21 +639,27 @@ if ( $log -eq $true) {
                     if ($msubject.Contains("Re:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
                     if ($msubject.Contains("re:") -eq $true) { $subject = @($msubject.Split(":")[1]).Trim() }
                     #******EH Debug
-                    Write-Host "L610 - Subject info 1: $subject"
+                    Write-Verbose "L610 - Subject info 1: $subject"
             
                     $endUserName = $reportedBy.Split("@")[0]
+                    
                     #IDEA - Add config option to support these methods
                     #Format 1 - Firstname.Lastname@example.com
                     #$endUserLastName = $endUserName.Split(".")[1]
+                    
                     #Format 2 - FLastname@example.com
-                    #Add in detection of numbers of tail, and remove
-                    #Format 3 - FirstnameLastname@example.com ??
                     $endUserLastName = $endUserName.substring(1) -replace '[^a-zA-Z-]',''
+
+                    #Format 3 - FirstnameLastname@example.com
+                    #$endUserLastName = ($endUserName -creplace  '([A-Z\W_]|\d+)(?<![a-z])',' $&').trim().Split(' ')[1]
+                    #
+                    #
+
                     #******EH Debug
-                    Write-Host "endUserName: $endUserName endUserLastName: $endUserLastName"
+                    Write-Verbose "endUserName: $endUserName endUserLastName: $endUserLastName"
                     $subjectQuery = "Subject:" + "'" + $subject + "'" + " Sent:" + $day
                     $subjectQuery = "'" + $subjectQuery + "'"
-                    #******EH Debug
+                    #******EH Verbose
                     Write-Host "Identifying variable subjectQuery: $subjectQuery"
                     $searchMailboxResults = Search-Mailbox $endUserName -SearchQuery $subjectQuery -TargetMailbox "$socMailbox" -TargetFolder "PROCESSING" -LogLevel Full
 
@@ -712,14 +686,14 @@ if ( $log -eq $true) {
 
                 # Pull more messages if the sender cannot be found (often happens when internal messages are reported)
                 if (-Not $spammer.Contains("@") -eq $true) {
-                    Write-Host "L651 - Spammer not found, looking for more."
+                    Write-Verbose "L691 - Spammer not found, looking for more."
                     sleep 10
                     echo $null > $analysisLog
                     $companyDomain = $socMailbox.Split("@")[1]
 
                     Get-MessageTrace -RecipientAddress $reportedBy -StartDate $24Hours -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Export-Csv $tmpLog -NoTypeInformation
                     #$subject = $_.Split(",")[6]; $subject = $subject.Split('"')[1]
-                    Write-Host "EH Debug - The subject var is equal to  $subject"
+                    Write-Verbose "L697 - The subject var is equal to  $subject"
                     type $tmpLog | ForEach-Object { $_ | Select-String -SimpleMatch $subject >> $analysisLog }
                     (gc $analysisLog) | ? {$_.trim() -ne "" } | set-content $analysisLog
                        
