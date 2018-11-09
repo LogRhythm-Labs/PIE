@@ -1,7 +1,6 @@
 
     Office 365 Ninja
     LogRhythm Security Operations
-    greg . foss @ logrhythm . com
     v2.0  --  August, 2018
 
 Copyright 2018 LogRhythm Inc.   

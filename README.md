@@ -2,7 +2,6 @@
 
     Phishing Intelligence Engine
     LogRhythm Security Operations
-    greg . foss @ logrhythm . com
     v2.0  --  August, 2018
 
 Copyright 2018 LogRhythm Inc. - See licensing details below
@@ -80,11 +79,12 @@ High level overview of the PIE architecture and workflow:
 ![PIE Architecture](/images/PIE-Architecture.png)
 
 
-## [Thanks]
+## [Thanks!]
 
 This project would not be a success without the folks below and the various third-party API integration providers. Thank you!
 
 - [Jtekt](https://github.com/Jtekt) - Shodan Plugin, O365 Safelinks, bug fixes, and LR 7.3 API integration
+- robert waight - LogRhythm Documentation, automated mailbox auditing, and various bug fixes
 - bruce deakyne -  Cisco AMP Threat GRID Plugin
 - jake reynolds - OpenDNS Plugin
 - julian crowley - Message Tracking Log Parsing
@@ -93,6 +93,11 @@ This project would not be a success without the folks below and the various thir
 - steve warburton - User Acceptance Testing
 - zack rowland - Outlook Button
 - SwiftOnSecurity - Phishing RegEx
+
+
+## [Lead Author]
+
+[Greg Foss](https://github.com/gfoss) - formerly of LogRhythm Labs
 
 
 ## [License]

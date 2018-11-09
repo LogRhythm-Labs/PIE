@@ -1,7 +1,6 @@
 
     Message Tracking - BASIC
     LogRhythm Security Operations
-    greg . foss @ logrhythm . com
     v1.0  --  November, 2017
 
 Copyright 2017 LogRhythm Inc.   
