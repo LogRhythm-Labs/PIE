@@ -78,6 +78,7 @@ $logFolder = "C:\PIE-INSTALL-DIRECTORY"
 
 # Folder Structure
 $traceLog = "$logFolder\logs\ongoing-trace-log.csv"
+$lastLogDateFile = "$logFolder\logs\last-log-date.txt"
 $log = $true
 
 # Date Variables
@@ -88,6 +89,15 @@ $24Hours = (Get-Date).AddHours(-24)
 $inceptionDate = (Get-Date).AddMinutes(-6)
 $phishDate = (Get-Date).AddMinutes(-7)
 $day = Get-Date -Format MM-dd-yyyy
+
+#Enables picking up e-mail message trace where last left off - by sslawter - LR Community
+try {
+    $lastLogDate = [DateTime]::SpecifyKind((Get-Content -Path $lastLogDateFile),'Utc')
+}
+catch {
+    $lastLogDate = $inceptionDate
+}
+
 
 
 # ================================================================================
@@ -126,9 +136,20 @@ try {
 
 if ( $log -eq $true) {
 
-    # scrape all mail - ongiong log generation
-    $messageTrace = Get-MessageTrace -StartDate $inceptionDate -EndDate $date | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
-    $messageTrace | Export-Csv $traceLog -NoTypeInformation -Append
+    # scrape all mail - ongiong log generation - Updated by sslawter - LR Community
+    foreach ($page in 1..1000) {
+        $messageTrace = Get-MessageTrace -StartDate $lastlogDate -EndDate $date -Page $page | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID
+        if ($messageTrace.Count -ne 0) {
+            $messageTraces += $messageTrace
+            Write-Verbose "Page #: $page"
+        }
+        else {
+            break
+        }
+    }
+    $messageTracesSorted = $messageTraces | Sort-Object Received
+    $messageTracesSorted | Export-Csv $traceLog -NoTypeInformation -Append
+    ($messageTracesSorted | Select-Object -Last 1).Received.GetDateTimeFormats("O") | Out-File -FilePath $lastLogDateFile -Force -NoNewline
     
     # scrape outbound spam tracking logs
     #$spamTrace = Get-MailDetailSpamReport -StartDate $inceptionDate -EndDate $date -Direction outbound | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
@@ -217,8 +238,12 @@ function Reset-Log
     } 
     $LogRollStatus 
 }
- 
-Reset-Log -fileName $traceLog -filesize 50mb -logcount 10
+
+$traceSize = Get-Item $traceLog
+if ($traceSize.Length -gt 49MB ) {
+    Start-Sleep -Seconds 30
+    Reset-Log -fileName $traceLog -filesize 50mb -logcount 10
+}
 #Reset-Log -fileName $spamTraceLog -filesize 25mb -logcount 10
 
 # Kill Office365 Session and Clear Variables
