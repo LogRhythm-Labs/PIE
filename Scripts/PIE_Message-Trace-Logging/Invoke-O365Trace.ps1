@@ -13,7 +13,7 @@
 
 INSTALL:
 
-    Review lines 43 through 95
+    Review lines 43 through 91
         Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
 
@@ -105,7 +105,6 @@ $autoBan = $false # Auto blacklist known-bad senders
 $threatThreshold = 5 # Actions run when the threat score is greater than the 'threatThreshold' below
 
 # Are Office 365 SafeLinks in use?
-$safeLinks = $false
 
 # General Link Analysis - No API key required and enabled by default
 $linkRegexCheck = $true
@@ -176,6 +175,7 @@ $traceLog = "$pieFolder\logs\ongoing-trace-log.csv"
 $phishLog = "$pieFolder\logs\ongoing-phish-log.csv"
 $spamTraceLog = "$pieFolder\logs\ongoing-outgoing-spam-log.csv"
 $analysisLog = "$pieFolder\logs\analysis.csv"
+$lastLogDateFile = "$pieFolder\logs\last-log-date.txt"
 $tmpLog = "$pieFolder\logs\tmp.csv"
 $caseFolder = "$pieFolder\cases\"
 $tmpFolder = "$pieFolder\tmp\"
@@ -187,15 +187,25 @@ $oldAF = (Get-Date).AddDays(-10)
 $96Hours = (Get-Date).AddHours(-96)
 $48Hours = (Get-Date).AddHours(-48)
 $24Hours = (Get-Date).AddHours(-24)
-$inceptionDate = (Get-Date).AddMinutes(-30)
+$inceptionDate = (Get-Date).AddMinutes(-16)
 $phishDate = (Get-Date).AddMinutes(-31)
 $day = Get-Date -Format MM-dd-yyyy
 
+#Enables picking up e-mail message trace where last left off - by sslawter - LR Community
+try {
+    $lastLogDate = [DateTime]::SpecifyKind((Get-Content -Path $lastLogDateFile),'Utc')
+}
+catch {
+    $lastLogDate = $inceptionDate
+}
+
 # Email Parsing Varibles
-$boringFiles = @('jpg', 'png', 'ico')    
+$boringFiles = @('jpg', 'png', 'ico', 'tif')    
 $boringFilesRegex = [string]::Join('|', $boringFiles)
-$interestingFiles = @('pdf', 'exe', 'zip', 'doc', 'docx', 'docm', 'xls', 'xlsx', 'xlsm', 'ppt', 'pptx', 'arj', 'jar', '7zip', 'tar', 'gz', 'html', 'js')
+$interestingFiles = @('pdf', 'exe', 'zip', 'doc', 'docx', 'docm', 'xls', 'xlsx', 'xlsm', 'ppt', 'pptx', 'arj', 'jar', '7zip', 'tar', 'gz', 'html', 'js', 'rpm', 'bat', 'cmd')
 $interestingFilesRegex = [string]::Join('|', $interestingFiles)
+
+
 
 # Outlook Folder Parsing
 function GetSubfolders($Parent) {
@@ -210,6 +220,7 @@ function GetSubfolders($Parent) {
 # Link and Domain Verification
 $IPregex=‘(?<Address>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))’
 [regex]$URLregex = '(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?'
+[regex]$IMGregex =  '(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png)'
 
 
 # ================================================================================
@@ -253,14 +264,24 @@ if ( $log -eq $true) {
         Set-Content $phishLog -Value "MessageTraceId,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageId"
     }
 
-    # scrape all mail - ongiong log generation
-    $messageTrace = Get-MessageTrace -StartDate "$inceptionDate" -EndDate "$date" | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
-    $messageTrace | Export-Csv $traceLog -NoTypeInformation -Append
-    
+    # scrape all mail - ongiong log generation - Updated by sslawter - LR Community
+    foreach ($page in 1..1000) {
+        $messageTrace = Get-MessageTrace -StartDate $lastlogDate -EndDate $date -Page $page | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID
+        if ($messageTrace.Count -ne 0) {
+            $messageTraces += $messageTrace
+            Write-Verbose "Page #: $page"
+        }
+        else {
+            break
+        }
+    }
+    $messageTracesSorted = $messageTraces | Sort-Object Received
+    $messageTracesSorted | Export-Csv $traceLog -NoTypeInformation -Append
+    ($messageTracesSorted | Select-Object -Last 1).Received.GetDateTimeFormats("O") | Out-File -FilePath $lastLogDateFile -Force -NoNewline
+
     # scrape outbound spam tracking logs
     #$spamTrace = Get-MailDetailSpamReport -StartDate $inceptionDate -EndDate $date -Direction outbound | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
     #$messageTrace | Export-Csv $spamTraceLog -NoTypeInformation -Append
-
     # Search for Reported Phishing Messages
     sleep 10
     $comp1 = Get-Content $phishLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
@@ -276,16 +297,15 @@ if ( $log -eq $true) {
         Write-Host "No phishing e-mails reported."
     }
     if ($newReports -ne $null) {
-
-        # Connect to local inbox and check for new mail
+        # Connect to local inbox #and check for new mail
         $outlookInbox = 6
         $outlook = new-object -com outlook.application
         $ns = $outlook.GetNameSpace("MAPI")
         $olSaveType = "Microsoft.Office.Interop.Outlook.OlSaveAsType" -as [type]
         $rootFolders = $ns.Folders | ?{$_.Name -match $env:phishing}
         $inbox = $ns.GetDefaultFolder($outlookInbox)
-        $messages = $inbox.items
-        $phishCount = $messages.count
+        #$messages = $inbox.items
+        #$phishCount = $messages.count
 
         #Enable support for .eml format
         #From https://gallery.technet.microsoft.com/office/Blukload-EML-files-to-e1b83f7f
@@ -345,6 +365,10 @@ if ( $log -eq $true) {
             $reportedBy = $($_.SenderAddress)
             $reportedSubject = $($_.Subject)
             Write-Verbose "L348 - reportedBy: $reportedBy  reportedSubject: $reportedSubject"
+            
+            #Access local inbox and check for new mail
+            $messages = $inbox.items
+            $phishCount = $messages.count
 
             # AutoQuarantinebySubject
             if ( $subjectAutoQuarantine -eq $true ) {
@@ -387,25 +411,33 @@ if ( $log -eq $true) {
 
                 # Extract reported messages
                 foreach($message in $messages){
-                    if ($($message.subject) -eq $reportedSubject) {
+                    Write-Verbose "L400 - Outlook Message Subject: $($message.Subject)"
+                    #Match known translation issues
+                    if ($($message.Subject) -like "*’*") {
+                        $message.Subject = $message.Subject.Replace("’", "?")
+                    } elseif ($($message.Subject) -like "*ðŸ¦*") {
+                        $message.Subject = $message.Subject.Replace("ðŸ¦", "????")
+                    } elseif ($($message.Subject) -like "*❯*") {
+                        $message.Subject = $message.Subject.Replace("❯", "?")
+                    }
+
+                    if ($($message.Subject) -eq $reportedSubject) {
                         $msubject = $message.subject
                         $mBody = $message.body
 
                         $message.attachments|foreach {
-                            #*******EH Debug
                             Write-Verbose "File name: $($_.filename)"
                             $attachment = $_.filename
-                            $a = $_.filename
-                            $b += @($tmpFolder+$a)
+                            $attachmentFull = $tmpFolder+$attachment
                             If (-Not ($a -match $boringFilesRegex)) {
-                                $_.SaveAsFile((Join-Path $tmpFolder $a))
+                                $_.SaveAsFile((Join-Path $tmpFolder $attachment))
+                                if ($attachment -NotLike "*.msg*" -and $attachment -NotLike "*.eml*" -and $attachment -NotLike "*.jpg" -and $attachment -NotLike "*.png" -and $attachment -NotLike "*.tif") {
+                                    sleep 1
+                                    $fileHashes += @(Get-FileHash -Path "$attachmentFull" -Algorithm SHA256)
+                                    Write-Verbose "L414 Interesting File Path for Hashes: $attachmentFull"
+                                }
                             }
                         }
-                        foreach ($file in $b ){
-                            $hashes += @(Get-FileHash -Path $b -Algorithm SHA256)
-                        }
-                        $attachmentFull = $tmpFolder + $a
-                        Write-Verbose "L407 - fileHashes - $hashes"
                         $MoveTarget = $inbox.Folders.item("COMPLETED")
                         [void]$message.Move($MoveTarget) 
                     }
@@ -432,33 +464,69 @@ if ( $log -eq $true) {
 
                         $getLinks = $msg.Body | findstr -i http
                         $null > "$tmpFolder\links.txt"
-                    
+                        #
+                        #LINKS
+                        #Clear links text file
+                        $null > "$tmpFolder\links.txt"
+						
+                        #Load links
+                        #Check if HTML Body exists else populate links from Text Body
+                        if ( $($msg.HTMLBody.Length -gt 0) ) {
+                            $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("") | findstr http
+                        } 
+                        else {
+                            $info = $msg.Body
+                            $getLinks = $URLregex.Matches($($info)).Value.Split("") | findstr http
+                        }
+
+                        #Identify Safelinks or No-Safelinks.  
                         [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
-                    
                         foreach ($link in $getLinks) {
-                        
-                            $link = @(@($link.Split("<")[1])).Split(">")[0]
-                            
-                            if ($safeLinks -eq $true) {
-                        
+                            if ($link -like "*originalsrc*" ) {
+                                Write-Verbose "Original source"
+                                Write-Verbose "Link Before: $link"
+                                $link = @(@($link.Split("`"")[1]))
+                                if ( $link -notmatch $IMGregex ) {
+                                    $link >> "$tmpFolder\links.txt"
+                                    Write-Verbose "Link After: $link"
+                                }
+                            } elseif ( $link -like "*safelinks.protection.outlook.com*" ) {
+                                Write-Verbose "Safelink source"
+                                Write-Verbose "Link Before: $link"
                                 [string[]] $urlParts = $link.Split("?")[1]
                                 [string[]] $linkParams = $urlParts.Split("&")
-
                                 for ($n=0; $n -lt $linkParams.Length; $n++) {
-                        
                                     [string[]] $namVal = $linkParams[$n].Split("=")
-                        
                                     if($namVal[0] -eq "url") {
-                        
                                         $encodedLink = $namVal[1]
                                         break
                                     }
                                 }
                                 $link = [System.Web.HttpUtility]::UrlDecode($encodedLink)
+                                if ( $link -notmatch $IMGregex ) {
+                                    $link >> "$tmpFolder\links.txt"
+                                    Write-Verbose "Link After: $link"
+                                }
+                            } else {
+                                Write-Verbose "Standard Link"
+                                $link = $URLregex.Matches($link).Value.Split("<").Split(">") | findstr http
+                                if ( $link -like '*"') {
+                                    $link = $link.Substring(0,$link.Length-1)
+                                }
+                                if ( $link -notmatch $IMGregex ) {
+                                    $link >> "$tmpFolder\links.txt"
+                                    Write-Verbose "Link After: $link"
+                                }
                             }
-                            $link >> "$tmpFolder\links.txt"
                         }
+                        
+                        #Remove empty lines
+                        (Get-Content $tmpFolder\links.txt) | ? {$_.trim() -ne "" } | set-content $tmpFolder\links.txt
+						
+                        #Update list of unique URLs
                         $links = type "$tmpFolder\links.txt" | Sort -Unique
+                        Write-Verbose "L508 - Links:`r`n$links"
+
                         $domains = (Get-Content $tmpFolder\links.txt) | %{ ([System.Uri]$_).Host } | Select-Object -Unique
 
                         $countLinks = @(@(Get-Content "$tmpFolder\links.txt" | Measure-Object -Line | Select-Object Lines | findstr -v "Lines -") -replace "`n|`r").Trim()
@@ -514,7 +582,7 @@ if ( $log -eq $true) {
 
                     #Headers
                     $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -Like "*header*"
-                    $headers > "$tmpFolder\headers.txt"
+                    echo $headers > "$tmpFolder\headers.txt"
 						
 					#Clear links text file
                     $null > "$tmpFolder\links.txt"
@@ -529,42 +597,44 @@ if ( $log -eq $true) {
                         $getLinks = $URLregex.Matches($($info)).Value.Split("") | findstr http
                     }
 
-                    #Identify Safelinks or No-Safelinks.  
-                    if ( $getLinks -like "*safelinks.protection.outlook.com*" -and $getLinks -like "*originalsrc*") {
-                        $getLinks = $getLinks | findstr originalsrc
-                        foreach ($link in $getLinks) {
+                    [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
+                    foreach ($link in $getLinks) {
+                        if ($link -like "*originalsrc*" ) {
+                            Write-Verbose "Original source"
+                            Write-Verbose "Link Before: $link"
                             $link = @(@($link.Split("`"")[1]))
-                            $link >> "$tmpFolder\links.txt"
-                        }
-                    } elseif ( $getLinks -like "*safelinks.protection.outlook.com*" ){
-                        #decode safelinks
-                        if ($safeLinks -eq $true) {
-                            [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
-                            foreach ($link in $getLinks) {                        
-                                [string[]] $urlParts = $link.Split("?")[1]
-                                [string[]] $linkParams = $urlParts.Split("&")
-
-                                for ($n=0; $n -lt $linkParams.Length; $n++) {
-                        
-                                    [string[]] $namVal = $linkParams[$n].Split("=")
-                        
-                                    if($namVal[0] -eq "url") {
-                        
+                            if ( $link -notmatch $IMGregex ) {
+                                $link >> "$tmpFolder\links.txt"
+                                Write-Verbose "Link After: $link"
+                            }
+                        } elseif ( $link -like "*safelinks.protection.outlook.com*" ) {
+                            Write-Verbose "Safelink source"
+                            Write-Verbose "Link Before: $link"
+                            [string[]] $urlParts = $link.Split("?")[1]
+                            [string[]] $linkParams = $urlParts.Split("&")
+                            for ($n=0; $n -lt $linkParams.Length; $n++) {
+                                [string[]] $namVal = $linkParams[$n].Split("=")
+                                if($namVal[0] -eq "url") {
                                     $encodedLink = $namVal[1]
                                     break
-                                    }
                                 }
+                            }
                             $link = [System.Web.HttpUtility]::UrlDecode($encodedLink)
-                            $link >> "$tmpFolder\links.txt"
+                            if ( $link -notmatch $IMGregex ) {
+                                $link >> "$tmpFolder\links.txt"
+                                Write-Verbose "Link After: $link"
+                            }
+                        } else {
+                            Write-Verbose "Standard Link"
+                            $link = $URLregex.Matches($link).Value.Split("<").Split(">") | findstr http
+                            if ( $link -like '*"') {
+                                $link = $link.Substring(0,$link.Length-1)
+                            }
+                            if ( $link -notmatch $IMGregex ) {
+                                $link >> "$tmpFolder\links.txt"
+                                Write-Verbose "Link After: $link"
                             }
                         }
-                    }else {
-                        $getLinks = $URLregex.Matches($($msg.HTMLBody)).Value.Split("<") | findstr http
-                        $getLinks = $URLregex.Matches($getLinks).value.split(" ") | findstr http
-                        foreach ($link in $getLinks) {
-                            $link >> "$tmpFolder\links.txt"
-                        }
-    
                     }
                     #Remove empty lines from links.txt
                     (Get-Content $tmpFolder\links.txt) | ? {$_.trim() -ne "" } | set-content $tmpFolder\links.txt
@@ -883,7 +953,7 @@ Case Folder:                 $caseID
                 $caseNote = type $analysisLog
                 $caseNote = $caseNote -replace '"', ""
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Raw Phishing Logs: $caseNote" -token $caseAPItoken
-        
+                
                 # Recipients
                 $messageRecipients = (Get-Content "$caseFolder$caseID\recipients.txt") -join ", "
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Email Recipients: $messageRecipients" -token $caseAPItoken
@@ -891,7 +961,18 @@ Case Folder:                 $caseID
                 # Copy E-mail Message text body to case
                 if ( $messageBody ) {
                     $caseMessageBody = $($messageBody.Replace("`r`n","\r\n"))
-                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Email Message Body:\r\n$caseMessageBody" -token $caseAPItoken
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Submitted Email Message Body:\r\n$caseMessageBody" -token $caseAPItoken
+                }
+
+                Write-Verbose "Number of Subjects: $($subjects.length)"
+                # If multiple subjects, add subjects to case
+                if ( $($subjects.Length) -gt 1 ) {
+                    $caseSubjects = $subjects | Out-String
+                    $caseSubjects = $($caseSubjects.Replace("`r`n","\r\n"))
+                    $caseSubjects = $($caseSubjects.Replace("`"",""))
+                    Write-verbose "L900 - True"
+                    Write-Verbose $caseSubjects
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Subjects from sender:\r\n$caseSubjects" -token $caseAPItoken
                 }
 
                 # Observed Links
@@ -962,6 +1043,7 @@ Case Folder:                 $caseID
                         Remove-Item -Path $tmpFolder\linkInfo.txt
                     }
                 }
+
 
                 # PHISHTANK
                 if ( $phishTank -eq $true ) {
@@ -1152,6 +1234,8 @@ Case Folder:                 $caseID
 				        echo "" >> "$caseFolder$caseID\spam-report.txt"
 			        }
                 }
+
+
 
                 # OPEN DNS
                 if ( $openDNS -eq $true ) {
@@ -1704,8 +1788,13 @@ function Reset-Log
     } 
     $LogRollStatus 
 }
- 
-Reset-Log -fileName $traceLog -filesize 50mb -logcount 10
+
+
+$traceSize = Get-Item $traceLog
+if ($traceSize.Length -gt 49MB ) {
+    Start-Sleep -Seconds 30
+    Reset-Log -fileName $traceLog -filesize 50mb -logcount 10
+}
 Reset-Log -fileName $phishLog -filesize 25mb -logcount 10
 #Reset-Log -fileName $spamTraceLog -filesize 25mb -logcount 10
 

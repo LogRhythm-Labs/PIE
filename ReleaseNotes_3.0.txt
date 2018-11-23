@@ -1,11 +1,18 @@
 PIE 3.0 (Pre-Release) - Change Notes
-Date: 10.31.2018
+Date: 11.23.2018
 
 COMPLETED:
 365-Trace
 *Removed 5 minute runtime requirement.  Invoke-O365Trace.ps1 can be executed at any interval.  
 ** Submitted phishing messages are compared against completed submitted phishing messages.  New messages are processed accordingly.
 ** All pending messages are reviewed through single execution of Invoke-O365Trace.
+
+*Updated ongoing log generation.  By sslawter, LogRhythm Community
+** E-mail message trace now resumes where last-left off.
+** Now supports retrieving up to 1,000,000 e-mail messages between executions, up from 1,000 messages.
+
+*Added delay to ongoing log file rotation.  By sslwater, LogRhythm Community
+** The added delay allows LogRhythm Sysmon collector to process the updated log file prior to file rotation.
 
 *Added support for .eml format e-mails.
 ** Parses message body, headers, links, and attachments from phishing reports submitted with the origin phishing message included in .eml format.
@@ -22,15 +29,22 @@ COMPLETED:
 *Added e-mail links to case notes.  
 ** Allows for easier review of all links contained within the e-mail.
 
+*Added subjects to case notes
+** Collects all subjects from sender from within evidence collection period (default 96 hours)
+
 Plugins:
 Shodan
 *Updated plugin to version 1.5.  Plugin now enumerates all services identified on host by Shodan.
 
 Urlscan:
 *New plugin.  Initiates URL scan for each URL and provides links to URLScan report and screenshot of the URL.
+**If a link is direct to a file, the file's information is presented as captured by URLScan.
+***File Name, SHA256 Hash, File Size, MIME Type, MIME Description
 **Optional parameter to download screenshots locally to case folder with link added to LR case report.
 
 Bugfixes:
+365-Trace
+*Improved abnormal character handling within Subject line
 
 Sucuri
 *Fixed bug where results returned contained different number of header lines preventing JSON value import
@@ -41,11 +55,6 @@ Internal Organization E-mail Address Template Config:
 *Add user configuration for last name collection.  Reference line 611.  
 ** Provide user with options and examples to set how their organization formats their e-mail addresses to best match capturing internal users surname.
 
-File-Hashes
-*Currently file hash generation is not successful.
-
-Updates .msg handler
-*Apply updated .eml message handler to .msg format.
 
 365-Ninja
 *Add Security and Compliance functionality
@@ -55,8 +64,3 @@ Updates .msg handler
 Shodan
 *Add handler for IP addresses that have not ben scanned by Shodan.
 ** Add config option and support to automatically initiate scan.
-
-BUGS:
-* Tif files - Being submitted for Palo Alto wildfire.  Add to bening ignore
-* Most likely needs to be cleaned up, or update Wildfire script.  Observed that the same file was submitted 3 times in one run, with the first 
-e-mail reviewed having the attachment.  
