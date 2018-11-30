@@ -1,5 +1,5 @@
 PIE 3.0 (Pre-Release) - Change Notes
-Date: 11.23.2018
+Date: 11.30.2018
 
 COMPLETED:
 365-Trace
@@ -13,6 +13,9 @@ COMPLETED:
 
 *Added delay to ongoing log file rotation.  By sslwater, LogRhythm Community
 ** The added delay allows LogRhythm Sysmon collector to process the updated log file prior to file rotation.
+
+*Updated autoAuditMailboxes to support handling multiple matched entries.
+** Enables auditing for users that have matching firstname/lastname records.
 
 *Added support for .eml format e-mails.
 ** Parses message body, headers, links, and attachments from phishing reports submitted with the origin phishing message included in .eml format.
@@ -32,8 +35,11 @@ COMPLETED:
 *Added subjects to case notes
 ** Collects all subjects from sender from within evidence collection period (default 96 hours)
 
-Plugins:
-Shodan
+*Added URL whitelist.
+** URLs added to the whitelist config file will be recorded as links but not be scanned by plugins.
+
+## Plugins
+Shodan:
 *Updated plugin to version 1.5.  Plugin now enumerates all services identified on host by Shodan.
 
 Urlscan:
@@ -49,7 +55,7 @@ Bugfixes:
 Sucuri
 *Fixed bug where results returned contained different number of header lines preventing JSON value import
 
-TO-DO:
+## TO-DO:
 365-Trace
 Internal Organization E-mail Address Template Config:
 *Add user configuration for last name collection.  Reference line 611.  

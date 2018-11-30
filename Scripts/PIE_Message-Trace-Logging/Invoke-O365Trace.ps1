@@ -179,6 +179,7 @@ $lastLogDateFile = "$pieFolder\logs\last-log-date.txt"
 $tmpLog = "$pieFolder\logs\tmp.csv"
 $caseFolder = "$pieFolder\cases\"
 $tmpFolder = "$pieFolder\tmp\"
+$confFolder = "$pieFolder\conf\"
 $log = $true
 
 # Date Variables
@@ -191,7 +192,10 @@ $inceptionDate = (Get-Date).AddMinutes(-16)
 $phishDate = (Get-Date).AddMinutes(-31)
 $day = Get-Date -Format MM-dd-yyyy
 
-#Enables picking up e-mail message trace where last left off - by sslawter - LR Community
+#URL Whitelist
+$urlWhitelist = type "$confFolder\urlWhitelist.txt" | Sort -Unique | foreach { $_ + '*' }
+$domainWhitelist = (Get-Content $confFolder\urlWhitelist.txt) | %{ ([System.Uri]$_).Host } | Select-Object -Unique | foreach { $_ + '*' }
+
 try {
     $lastLogDate = [DateTime]::SpecifyKind((Get-Content -Path $lastLogDateFile),'Utc')
 }
@@ -259,12 +263,43 @@ try {
 # ================================================================================
 
 if ( $log -eq $true) {
+    
+
+    if ( $autoAuditMailboxes -eq $true ) {
+        # Check for mailboxes where auditing is not enabled and is limited to 1000 results
+        $UnauditedMailboxes=(Get-Mailbox -Filter {AuditEnabled -eq $false}).Identity
+        $UAMBCount=$UnauditedMailboxes.Count
+        if ($UAMBCount -gt 0){
+            Write-Host "Attempting to enable auditing on $UAMBCount mailboxes, please wait..." -ForegroundColor Cyan
+            $UnauditedMailboxes | % { 
+                Try {
+                    $auditRecipient = Get-Recipient $_
+                    Set-Mailbox -Identity $_ -AuditDelegate SendAs,SendOnBehalf,Create,Update,SoftDelete,HardDelete -AuditEnabled $true -ErrorAction Stop
+                } Catch {
+                    #Catch handles conflicts where multiple users share the same firstname, lastname.
+                    Write-Host "Issue: $($PSItem.ToString())"
+                    for ($i = 0 ; $i -lt $auditRecipient.Count ; $i++) {
+                        Set-Mailbox -Identity $($auditRecipient[$i].guid.ToString()) -AuditDelegate SendAs,SendOnBehalf,Create,Update,SoftDelete,HardDelete -AuditEnabled $true
+                    }
+                }
+
+            }
+            Write-Host "Finished attempting to enable auditing on $UAMBCount mailboxes." -ForegroundColor Yellow
+        }
+        if ($UAMBCount -eq 0){} # Do nothing, all mailboxes have auditing enabled.
+    }
+
     #Create phishLog if file does not exist.
     if ( $(Test-Path $phishLog -PathType Leaf) -eq $false ) {
         Set-Content $phishLog -Value "MessageTraceId,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageId"
     }
 
-    # scrape all mail - ongiong log generation - Updated by sslawter - LR Community
+    # scrape all mail - ongiong log generation
+    #Write-Verbose "2"
+    #$messageTrace = Get-MessageTrace -StartDate "$inceptionDate" -EndDate "$date" | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
+    #$messageTrace | Export-Csv $traceLog -NoTypeInformation -Append
+    
+    # new scrape mail - by sslawter - LR Community
     foreach ($page in 1..1000) {
         $messageTrace = Get-MessageTrace -StartDate $lastlogDate -EndDate $date -Page $page | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID
         if ($messageTrace.Count -ne 0) {
@@ -279,24 +314,20 @@ if ( $log -eq $true) {
     $messageTracesSorted | Export-Csv $traceLog -NoTypeInformation -Append
     ($messageTracesSorted | Select-Object -Last 1).Received.GetDateTimeFormats("O") | Out-File -FilePath $lastLogDateFile -Force -NoNewline
 
-    # scrape outbound spam tracking logs
-    #$spamTrace = Get-MailDetailSpamReport -StartDate $inceptionDate -EndDate $date -Direction outbound | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
-    #$messageTrace | Export-Csv $spamTraceLog -NoTypeInformation -Append
     # Search for Reported Phishing Messages
-    sleep 10
-    $comp1 = Get-Content $phishLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
-    #$phishTrace = Get-MessageTrace -RecipientAddress $socMailbox -StartDate "$inceptionDate" -EndDate "$date" -Status Delivered | Select MessageTraceID,Received,*Address,*IP,Subject,Status,Size,MessageID | Sort-Object Received
+    $phishHistory = Get-Content $phishLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
     $phishTrace = Get-MessageTrace -RecipientAddress $socMailbox -Status Delivered | Select MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID | Sort-Object Received
     $phishTrace | Export-Csv $tmpLog -NoTypeInformation
-    $comp2 = Get-Content $tmpLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
+    $phishNewReports = Get-Content $tmpLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
     if ((get-item $tmpLog).Length -gt 0) {
-        $newReports = Compare-Object $comp1 $comp2 -Property MessageTraceID -PassThru -IncludeEqual | Where-Object {$_.SideIndicator -eq '=>' } | Select-Object MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID
+        $newReports = Compare-Object $phishHistory $phishNewReports -Property MessageTraceID -PassThru -IncludeEqual | Where-Object {$_.SideIndicator -eq '=>' } | Select-Object MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID
         Write-Verbose "L268 - newReports: $($newReports.SenderAddress)"
     } else {
         $newReports = $null
         Write-Host "No phishing e-mails reported."
     }
     if ($newReports -ne $null) {
+
         # Connect to local inbox #and check for new mail
         $outlookInbox = 6
         $outlook = new-object -com outlook.application
@@ -754,6 +785,7 @@ if ( $log -eq $true) {
                     $spammer = $spammer.Split('"')[1] | Sort | Get-Unique
                 }
 
+
                 # Pull more messages if the sender cannot be found (often happens when internal messages are reported)
                 if (-Not $spammer.Contains("@") -eq $true) {
                     Write-Verbose "L691 - Spammer not found, looking for more."
@@ -980,6 +1012,35 @@ Case Folder:                 $caseID
                     $messageLinks= (Get-Content "$caseFolder$caseID\links.txt") -join "\r\n"
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Links:\r\n$messageLinks" -token $caseAPItoken
                 }
+
+                # Remove whitelist Links from Links List
+                # Links
+                [System.Collections.ArrayList]$scanLinks = $links
+                [System.Collections.ArrayList]$scanDomains = $domains
+
+                for ($i=0; $i -le $links.Count; $i++) {
+                    Write-Verbose "i = $i`r`nLink = $($links[$i])"
+                    foreach ($wlink in $urlWhitelist) {
+                        if ($($links[$i]) -like $wlink ) {
+                            Write-Verbose "L999 - Whitelisted Link, remove link from scanning for $($links[$i])."
+                            $scanLinks.Remove($($links[$i])) 
+                            #$i--
+                        }
+                    }
+                }
+                Write-Verbose "L1006 Scan Links - $scanLinks"
+                # Domains
+                for ($b=0; $b -le $domains.Count; $b++) {
+                    Write-Verbose "b = $b`r`nLink = $($domains[$b])"
+                    foreach ($wdomain in $domainWhitelist) {
+                        if ($($domains[$b]) -like $wdomain ) {
+                            Write-Verbose "L1008 - Whitelisted Domain, removed domain from scanning for $($domains[$b])."
+                            $scanDomains.Remove($($domains[$b])) 
+                            #$b--
+                        }
+                    }
+                }
+                Write-Verbose "L1017 Scan Domains - $scanDomains"
 #>
 
 # ================================================================================
@@ -1003,7 +1064,7 @@ Case Folder:                 $caseID
                 # SCREENSHOT MACHINE
                 if ( $screenshotMachine -eq $true ) {
 
-                    $links | ForEach-Object {
+                    $scanLinks | ForEach-Object {
                         $splitLink = ([System.Uri]"$_").Host
 
                         Invoke-RestMethod "http://api.screenshotmachine.com/?key=$screenshotKey&dimension=1024x768&format=png&url=$_" -OutFile "$caseFolder$caseID\screenshot-$splitLink.png"
@@ -1016,7 +1077,7 @@ Case Folder:                 $caseID
                 # GET LINK INFO
                 if ( $getLinkInfo -eq $true ) {
             
-                    $links | ForEach-Object { 
+                    $scanLinks | ForEach-Object { 
                         $splitLink = $_.Split(":") | findstr -v http
 
                         $linkInfo = iwr http://www.getlinkinfo.com/info?link=$_
@@ -1048,7 +1109,7 @@ Case Folder:                 $caseID
                 # PHISHTANK
                 if ( $phishTank -eq $true ) {
 
-                    $links | ForEach-Object { 
+                    $scanLinks | ForEach-Object { 
                         $splitLink = $_.Split(":") | findstr -v http
 
                         if ( $phishTankAPI ) {
@@ -1086,7 +1147,7 @@ Case Folder:                 $caseID
                 # SUCURI LINK ANALYSIS
                 if ( $sucuri -eq $true ) {
 
-                    $domains | ForEach-Object {
+                    $scanDomains | ForEach-Object {
                         $sucuriLink = "https://sitecheck.sucuri.net/results/$_"
                         $sucuriAnalysis = iwr "https://sitecheck.sucuri.net/api/v2/?scan=$_&json"
                         $sucuriAnalysis.RawContent | Out-File $tmpFolder\sucuriAnalysis.txt
@@ -1137,12 +1198,12 @@ Case Folder:                 $caseID
                 # URLSCAN
                 if ( $urlscan -eq $true ) {
 
-			        if ( $links.length -gt 0 ) {
+			        if ( $scanLinks.length -gt 0 ) {
 			
 				        echo "urlscan.io" >> "$caseFolder$caseID\spam-report.txt"
 				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
 
-				        $links | ForEach-Object {
+				        $scanLinks | ForEach-Object {
 
 					        & $pieFolder\plugins\URLScan.ps1 -key $urlscanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken -networkShare $networkShare
 
@@ -1162,7 +1223,7 @@ Case Folder:                 $caseID
                     $threshold = (Get-Date).AddMonths(-3)
                     $threshold = $threshold.ToString("yyy-MM-dd")
 
-                    $links | ForEach-Object {
+                    $scanLinks | ForEach-Object {
                         If([string]$_ -match ($domainIgnoreList -join "|")) {
                             Write-Output "Nothing to analyze"
                         } else {
@@ -1218,12 +1279,12 @@ Case Folder:                 $caseID
                 # SHODAN
                 if ( $shodan -eq $true ) {
 
-			        if ( $domains.length -gt 0 ) {
+			        if ( $scanDomains.length -gt 0 ) {
 			
 				        echo "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
 				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
 
-				        $domains | ForEach-Object {
+				        $scanDomains | ForEach-Object {
 					        echo "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
 
 					        & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
@@ -1240,7 +1301,7 @@ Case Folder:                 $caseID
                 # OPEN DNS
                 if ( $openDNS -eq $true ) {
 
-                    $links | ForEach-Object {
+                    $scanLinks | ForEach-Object {
 
                         $splitLink = ([System.Uri]"$_").Host
 
@@ -1272,7 +1333,7 @@ Case Folder:                 $caseID
                 # URL VOID
                 if ( $urlVoid -eq $true ) {
             
-                    $links | ForEach-Object {
+                    $scanLinks | ForEach-Object {
                 
                         $splitLink = ([System.Uri]"$_").Host
                     
@@ -1346,7 +1407,7 @@ Case Folder:                 $caseID
 
                     if ( $virusTotalAPI ) {
             
-                        $links | ForEach-Object {
+                        $scanLinks | ForEach-Object {
                             $splitLink = $_.Split(":") | findstr -v http
 
                             $postParams = @{apikey="$virusTotalAPI";resource="$_";}
@@ -1412,7 +1473,7 @@ Case Folder:                 $caseID
                 # SHORT LINK ANALYSIS
                 if ( $shortLink -eq $true ) {
             
-                    $links | ForEach-Object {
+                    $scanLinks | ForEach-Object {
 
                         if ( $_ -match "https://bit.ly" ) {
                 
@@ -1524,7 +1585,7 @@ Case Folder:                 $caseID
                                         '\.joburg',
                                         '\.top/'
             
-                    $links | ForEach-Object { 
+                    $scanLinks | ForEach-Object { 
                         $splitLink = $_.Split(":") | findstr -v http
 
                         If([string]$_ -match ($linkRegexList -join "|")) {
@@ -1563,7 +1624,7 @@ Case Folder:                 $caseID
                         $caseNote = "The collected links are now being analyzed for risk using Cisco AMP Threat Grid..."
                         & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$caseNote" -token $caseAPItoken
 
-                        $links | ForEach-Object { 
+                        $scanLinks | ForEach-Object { 
                             & $pieFolder\plugins\ThreatGRID-PIE.ps1 -url "$_" -key $threatGridAPI -caseNumber $caseNumber -caseFolder "$caseFolder$caseID" -caseAPItoken $caseAPItoken -LogRhythmHost $LogRhythmHost
                         }
                     } else {
@@ -1703,6 +1764,8 @@ Case Folder:                 $caseID
 			$directoryInfo = $null
 			$caseID = $null
 			$summary = $null
+            $scanLinks = $null
+            $scanDomains = $null
         }
     }
 }
