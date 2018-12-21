@@ -48,6 +48,7 @@ if ( $fileHash ) {
     #Get verdict - single lookup - Simple lookup
     [xml]$wfQuery = Invoke-WebRequest -uri "https://wildfire.paloaltonetworks.com/publicapi/get/verdict" -Method Post -Body "apikey=$key;hash=$fileHash;format=xml"
     $wfVerdict = $wfQuery.wildfire.'get-verdict-info'.verdict
+    Write-Host $wfVerdict
     switch ( $wfVerdict )
     {
         -103{
@@ -111,15 +112,15 @@ if ( $fileHash ) {
             echo "Palo Alto Wildfire Results" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted file: $fileName" >> "$caseFolder$caseID\spam-report.txt"
             echo "Submitted hash: $fileHash" >> "$caseFolder$caseID\spam-report.txt"
-            echo "Wildfire Verdict: File Benign" >> "$caseFolder$caseID\spam-report.txt"
+            echo "Wildfire Verdict: File benign" >> "$caseFolder$caseID\spam-report.txt"
         }
         1{
             #1 File identified as malware
-            Write-Verbose "Submitted hash value is confirmed as malware."
+            Write-Host "Submitted hash value is confirmed as malware."
         }
         2{
             #2 File identified as grayware
-            Write-Verbose "Submitted hash value is confirmed as grayware."
+            Write-Host "Submitted hash value is confirmed as grayware."
         }
         default{
             #Unknown error occurred
@@ -142,8 +143,8 @@ if ( $fileHash ) {
         $wfFileMd5 = $wfReport.wildfire.file_info.md5
         $wfFileSha256 = $wfReport.wildfire.file_info.sha256
         $wfFileSize = $wfReport.wildfire.file_info.size
-        $wfStatus = "====ALERT - WILDFIRE====\r\nMALICIOUS FILE DETECTED! Wildfire has reported $fileName as Malware.\r\n\r\nWildfire Information:\r\n File Type: $wfFiletype\r\n File MD5: $wfFileMd5\r\n File SHA256: $wfFileSha256\r\n File Size: $wfFileSize"
-        Write-Verbose $wfStatus
+        $wfStatus = "MALICIOUS FILE DETECTED! Wildfire has reported $fileName as Malware.\r\n\r\nWildfire Information:\r\n File Type: $wfFiletype\r\n File MD5: $wfFileMd5\r\n File SHA256: $wfFileSha256\r\n File Size: $wfFileSize"
+        Write-Host $wfStatus
         $threatScore += 1
 
         & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$wfStatus" -token $caseAPItoken

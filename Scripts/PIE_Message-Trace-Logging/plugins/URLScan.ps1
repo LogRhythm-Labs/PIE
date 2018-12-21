@@ -23,6 +23,7 @@ param(
 
 # Mask errors
 $ErrorActionPreference= 'silentlycontinue'
+$threatScore = 0
 
 # Optional Parameters
 #Downloads screenshot of link destination to PIE case folder
@@ -54,19 +55,61 @@ $scanTime = $urlscanResults.task.time
 $scannedURL = $urlscanResults.task.url
 $ssURL = $urlscanResults.task.screenshotURL
 $repURL = $urlscanResults.task.reportURL
+$malware = $urlscanResults.stats.malicious
+$certIssuers = $urlscanResults.lists.certificates.issuer
+$domains = $urlscanResults.lists.domains
+$serverStats = $urlscanResults.stats.serverStats.Count
+#Hosted file info
+$filename = $urlscanResults.meta.processors.download.data.filename
+$fileHash = $urlscanResults.meta.processors.download.data.sha256
+$fileSize = $urlscanResults.meta.processors.download.data.filesize
+$fileMimeType = $urlscanResults.meta.processors.download.data.mimeType
+$fileMimeDesc = $urlscanResults.meta.processors.download.data.mimeDescription
 
-$status = "====INFO - URLSCAN====\r\nScanned Link`: $link\r\nScan Report`: $repURL\r\nURL Screenshot`: $ssURL"
+#Build display info
+$status = "====INFO - URLSCAN====\r\nScanned Link`: $link"
+if ( $serverStats -eq 0 ) {
+    $status += "\r\nALERT: Website could not be scanned by urlscan.io\r\nScans from urlscan.io are based from Germany.  \r\nPossible geographical-ip or explicit urlscan.io blocked."
+} else {
+    $status += "\r\n\r\nScan Report`: $repURL"
+    if ( $filename -ne $null ) {
+        $status += "\r\nFile name: $filename\r\nSha256 hash: $fileHash\r\nFile size: $fileSize\r\nMIME Type: $fileMimeType\r\nMIME Description: $fileMimeDesc"
+        $dlHshPath = "$caseFolder\$caseID\urlScan"
+        if (!(Test-Path -Path $dlHshPath)) {
+            New-Item -Path $dlHshPath -ItemType directory
+        }
+        echo "$fileHash,$filename" >> "$dlHshPath/hashes.txt"
+        #$status += "\r\n\r\nFile Path: "+$networkShare+"urlScan\hashes.txt"
 
-#Download copy of destination link
-if ( $downloadPNG -eq $true ) {
-    $filename = $scannedURL | %{ ([System.Uri]$_).Host }
-    $filename = $filename -replace "www.",""
-    $filename = "$filename.uid-$($ssURL.Split("/")[4])"
-    $dlPath = "$caseFolder\$caseID\$filename"
-    Invoke-WebRequest -Uri $ssURL -OutFile $dlPath
-    $status += "\r\nLocation: $networkShare$filename"
+    } else {
+        $status += "\r\nURL Screenshot`: $ssURL"
+		#Download copy of destination link
+		if ( $downloadPNG -eq $true ) {
+			$dlFilename = $scannedURL | %{ ([System.Uri]$_).Host }
+			$dlFilename = $dlFilename -replace "www.",""
+			$dlFilename = "$dlFilename.uid-$($ssURL.Split("/")[4])"
+            $dlSCPath = "$caseFolder\$caseID\urlScan\"
+            if (!(Test-Path -Path $dlSCPath)) {
+                New-Item -Path $dlSCPath -ItemType directory
+            }
+			$dlSCFull = "$dlSCPath$dlFilename"
+			Invoke-WebRequest -Uri $ssURL -OutFile $dlSCFull
+		}
+    }   
 }
-$status += "\r\n\r\nScan Time: $scanTime\r\n****END - URLSCAN ****"
+if ($malware -gt 0 ) {
+    $status += "\r\nALERT: Malware reported!"
+	$threatScore += 1
+}
+if ( $certIssuers -imatch "Let's Encrypt" ) {
+    $status += "\r\nALERT: Let's Encrypt Certificate Authority Detected!"
+}
+if ( $certIssuers -imatch $domains ) {
+    $status += "\r\nALERT: Self-Signed Certificate Detected!"
+	$threatScore += 1   	
+}
+
+$status += "\r\n\r\nScan Time: $scanTime\r\n====END - URLSCAN===="
 
 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$status" -token $caseAPItoken
 echo $status.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"

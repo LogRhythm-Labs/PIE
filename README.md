@@ -2,8 +2,7 @@
 
     Phishing Intelligence Engine
     LogRhythm Security Operations
-    greg . foss @ logrhythm . com
-    v2.0  --  August, 2018
+    v3.0  RC1 --  December, 2018
 
 Copyright 2018 LogRhythm Inc. - See licensing details below
 
