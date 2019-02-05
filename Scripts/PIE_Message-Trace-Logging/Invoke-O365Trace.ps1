@@ -1,7 +1,6 @@
 ﻿
   #====================================#
   # PIE - Phishing Intelligence Engine #
-  # LogRhythm Security Operations      #
   # v3.0  --  December 2018            #
   #====================================#
 
@@ -16,7 +15,7 @@ INSTALL:
         Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
 
-    Review Lines 90 through 169./
+    Review Lines 90 through 174
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
 
@@ -171,6 +170,7 @@ $wrike = $false
 $wrikeAPI = ""
 $wrikeFolder = ""
 $wrikeUser = ""
+
 
 # ================================================================================
 # END GLOBAL PARAMETERS
@@ -1131,13 +1131,13 @@ Case Folder:                 $caseID
                     [System.Collections.ArrayList]$scanDomains = @($domains)
                     Write-Verbose "L1021 links: $links "
                     Write-Verbose "L1022 links: $scanlinks "
-                    for ($i=0; $i -le $links.Count; $i++) {
+                    for ($i=0; $i -lt $links.Count; $i++) {
                         Write-Verbose "i = $i`r`nLink = $($links[$i])"
                         foreach ($wlink in $urlWhitelist) {
                             if ($($links[$i]) -like $wlink ) {
                                 Write-Output "$(Get-TimeStamp) DEBUG - Removing link: $($links[$i])" | Out-File $runLog -Append
                                 Write-Verbose "L999 - Whitelisted Link, remove link from scanning for $($links[$i])."
-                                $scanLinks.Remove($($links[$i])) 
+                                $scanLinks.RemoveAt($i)
                                 #$i--
                             }
                         }
@@ -1145,14 +1145,13 @@ Case Folder:                 $caseID
                     Write-Verbose "L1033 Processed Scan Links - $scanLinks"
                     # Domains
                     Write-Output "$(Get-TimeStamp) DEBUG - Removing whitelist domains from scannable domains" | Out-File $runLog -Append
-                    for ($b=0; $b -le $domains.Count; $b++) {
-                        Write-Verbose "b = $b`r`nLink = $($domains[$b])"
+                    for ($b=0; $b -lt $scanDomains.Count; $b++) {
+                        Write-Host "b = $b`r`nLink = $($scanDomains[$b])"
                         foreach ($wdomain in $domainWhitelist) {
-                            if ($($domains[$b]) -like $wdomain ) {
-                                Write-Output "$(Get-TimeStamp) DEBUG - Removing domain: $($domains[$b])" | Out-File $runLog -Append
-                                Write-Verbose "L1008 - Whitelisted Domain, removed domain from scanning for $($domains[$b])."
-                                $scanDomains.Remove($($domains[$b])) 
-                                #$b--
+                            if ($($scanDomains[$b]) -like $wdomain ) {
+                                Write-Output "$(Get-TimeStamp) DEBUG - Removing domain: $($scanDomains[$b])" | Out-File $runLog -Append
+                                Write-Verbose "L1008 - Whitelisted Domain, removed domain from scanning for $($scanDomains[$b])."
+                                $scanDomains.RemoveAt($b)
                             }
                         }
                     }
@@ -1165,6 +1164,27 @@ Case Folder:                 $caseID
 # Third Party Integrations
 # ================================================================================
 #
+				# SHODAN
+                if ( $shodan -eq $true ) {
+			        if ( $scanDomains.length -gt 0 ) {
+                        Write-Output "$(Get-TimeStamp) STATUS - Begin Shodan" | Out-File $runLog -Append
+			
+				        echo "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
+				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+
+				        $scanDomains | ForEach-Object {
+					        echo "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
+                            Write-Output "$(Get-TimeStamp) INFO - Submitting domain: $_" | Out-File $runLog -Append
+					        & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+
+				        }
+
+				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+				        echo "" >> "$caseFolder$caseID\spam-report.txt"
+                        Write-Output "$(Get-TimeStamp) STATUS - End Shodan" | Out-File $runLog -Append
+			        }
+                }
+				
                 # WRIKE
                 if ( $wrike -eq $true ) {
                     Write-Output "$(Get-TimeStamp) STATUS - Begin Wrike" | Out-File $runLog -Append
@@ -1362,6 +1382,239 @@ Case Folder:                 $caseID
                     }
                 }
 
+                # VIRUS TOTAL - Plugin Block
+                if ( $virusTotal -eq $true ) {
+                    if ( $virusTotalAPI ) {
+	                    Write-Output "$(Get-TimeStamp) STATUS - Start Virus Total" | Out-File $runLog -Append
+	                    if ( $scanDomains.length -gt 0 ) {
+	                        $scanDomains | ForEach-Object {
+                                #Set VirusTotal API clock
+                                if ($vtRunTime -eq $null) {
+                                    Write-Output "$(Get-TimeStamp) DEBUG - Setting Initial Virus Total Runtime" | Out-File $runLog -Append
+                                    $vtRunTime = (Get-Date)
+                                    $vtQueryCount = 0
+                                } else {
+                                    $vtTestTime = (Get-Date)
+                                    $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
+                                    echo "Time difference: $vtTimeDiff"
+                                    #If the time differene is greater than 4, reset the API use clock to current time.
+                                    if ($vtTimeDiff.Minutes -gt 0 ) {
+                                        Write-Output "$(Get-TimeStamp) DEBUG - Virus Total Runtime Greater than 1" | Out-File $runLog -Append
+                                        Write-Output "$(Get-TimeStamp) DEBUG - Resetting Virus Total Runtime position" #| Out-File $runLog -Append
+                                        $vtRunTime = (Get-Date)
+                                        $vtQueryCount = 0
+                                    }
+                                }
+		                        $vtStatus = "====INFO - Virus Total Domain====\r\n"
+
+		                        Write-Output "$(Get-TimeStamp) INFO - Submitting Domain $_" | Out-File $runLog -Append
+		                        $postParams = @{apikey="$virusTotalAPI";domain="$_";}
+
+                                #Public API use vs Commercial logic block
+                                if ( $virusTotalPublic -eq $true ) {
+                                    $vtQueryCount = $vtQueryCount + 1
+                                    if ($vtQueryCount -lt 5) {
+                                        Write-Output "$(Get-TimeStamp) DEBUG - Submitting Domain#: $vtQueryCount Domain: $_" | Out-File $runLog -Append
+                                        $vtResponse = iwr http://www.virustotal.com/vtapi/v2/domain/report -Method GET -Body $postParams
+                                        $vtResponse = $vtResponse.Content | ConvertFrom-Json
+                                        $vtResponseCode = $vtResponse.response_code
+                                    } else {
+                                        $vtTestTime = (Get-Date)
+                                        $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
+                                        if ($vtTimeDiff.Minutes -gt 0 ) {
+                                            #If the time difference between time values is greater than 1, new submissions can be made.  Reset the API's run clock to now.
+                                            $vtRunTime = (Get-Date)
+                                            $vtQueryCount = 1
+                                            Write-Output "$(Get-TimeStamp) DEBUG - Submitting Domain#: $vtQueryCount Domain: $_" | Out-File $runLog -Append
+                                            $vtResponse = iwr http://www.virustotal.com/vtapi/v2/domain/report -Method GET -Body $postParams
+                                            $vtResponse = $vtResponse.Content | ConvertFrom-Json
+                                            $vtResponseCode = $vtResponse.response_code
+                                        } else {
+                                            #Set the vtResponseCode to -1.  -1 is a self defined value for exceeding the API limit.
+                                            $vtResponseCode = -1
+                                        }
+                                    }
+                                } elseif ( $virusTotalPublic -eq $false ) {
+                                    #If running under a commercial license, API call you like >:)
+                                    $vtResponse = iwr http://www.virustotal.com/vtapi/v2/domain/report -Method GET -Body $postParams
+                                    $vtResponse = $vtResponse.Content | ConvertFrom-Json
+                                    $vtResponseCode = $vtResponse.response_code
+                                }
+                              
+
+                                if ($vtResponseCode -eq 1) {
+			                        Write-Output "$(Get-TimeStamp) INFO - Virus Total Response Code: 1, Results returned on domain." | Out-File $runLog -Append
+                                    $vtLink = "https://www.virustotal.com/#/domain/$_"
+                    
+                                    [System.Collections.ArrayList]$vtDomainUrls = $vtResponse.detected_urls
+                                    $vtStatus += "Scanned Domain: $_\r\n"
+                                    if ($vtResponse."Alexa domain info" -ne $null) {
+                                        $vtStatus += "Alexa Info: "+$vtResponse."Alexa domain info"+"\r\n"
+                                    }
+                                    if ($vtResponse."Webutation domain info" -ne $null) {
+                                        $vtStatus += "Webutation Score: "+$vtResponse."Webutation domain info"."Safety score"+"  Verdict: "+$vtResponse."Webutation domain info".Verdict+"\r\n"
+                                    }
+                                    if ($vtResponse."TrendMicro category" -ne $null) {
+                                        $vtStatus += "TrendMicro Category: "+$vtResponse."TrendMicro category"+"\r\n"
+                                    }
+                                    if ($vtResponse."Forcepoint ThreatSeeker category" -ne $null) {
+                                        $vtStatus += "Forcepoint Category: "+$vtResponse."Forcepoint ThreatSeeker category"+"\r\n"
+                                    }
+
+
+                                    #Step through domain for URL array.
+                                    for ($n=0; $n -lt $vtDomainUrls.Count; $n++) {                     
+                                        for ($i=0; $i -lt $scanLinks.Count  ; $i++) {
+                                            if ($($vtDomainUrls[$n].url) -eq $scanLinks[$i]) {
+                                                Write-Output "$(Get-TimeStamp) DEBUG - Matched URL" | Out-File $runLog -Append
+                                                $vtStatus += "\r\nMatched URL: "+$vtDomainUrls[$n].url+"\r\n"
+                                                if ( $vtDomainUrls[$n].positives -lt 2 ) {
+						        
+                                                    $vtStatus += "The url has been marked benign.\r\n"
+						                            Write-Output "$(Get-TimeStamp) INFO - Benign URL $($vtDomainUrls[$n].url)" | Out-File $runLog -Append
+									
+					                            } elseif ( $vtDomainUrls[$n].positives -gt 1 ) {
+                                                    $vtStatus += "ALERT: This sample has been flagged by "+$vtDomainUrls[$n].positives+"/"+$vtDomainUrls[$n].total+" Anti Virus engines.\r\nScan Date: "+$vtDomainUrls[$n].scan_date+"\r\n"
+						                            #If the url is found on the domain, and hosts malicious content increase the threatScore by the number of positives reported.
+                                                    $threatScore += [int]$vtDomainUrls[$n].positives
+						                            Write-Output "$(Get-TimeStamp) INFO - Malicious URL $($vtDomainUrls[$n].url)" | Out-File $runLog -Append
+					                            }
+                                                $vtDomainUrls.RemoveAt($n)
+                                            }                 
+                                        }
+                                        if ( $vtDomainUrls[$n].positives -gt 2 ) {
+                                            $tempThreat = [int]$vtDomainUrls[$n].positives
+                                            $vtStatus += "\r\nALERT: A domain sample has been flagged by "+$vtDomainUrls[$n].positives+"/"+$vtDomainUrls[$n].total+" Anti Virus engines.\r\nURL: "+$vtDomainUrls[$n].url+"\r\nScan Date: "+$vtDomainUrls[$n].scan_date+"\r\n\r\n"
+                                            Write-Output "$(Get-TimeStamp) INFO - Malicious URL hosted by Domain: $($vtDomainUrls[$n].url)" | Out-File $runLog -Append
+				                        }
+
+                                    }
+                                    if ( $tempThreat -gt 0 ) {
+                                        #If the domain hosts malicious content at other URLs outside of the specific URLs contained within the e-mail, increase threat by 1
+                                        $threatScore += 1
+                                    } elseif ($vtDomainUrls.Count -gt 0) {
+                                        $vtStatus += "\r\nDomain URL Summary: Virus Total holds "+$vtDomainUrls.Count+" entries each with benign sample results."+"\r\n"
+                                    }
+
+                                    $vtStatus += "\r\nVirusTotal report: $vtLink"
+		                        } elseif ($vtResponseCode -eq 0) {
+			                        Write-Output "$(Get-TimeStamp) INFO - Response Code: 0, Domain not found in VT Database" | Out-File $runLog -Append
+			                        $vtStatus += "\r\nDomain`: $_ not found in VirusTotal database.\r\n"
+		                        } elseif ($vtResponseCode -eq -1) {
+                                    Write-Output "$(Get-TimeStamp) INFO - Response Code: -1, Rate limit exceeded for public API use." | Out-File $runLog -Append
+			                        $vtStatus += "\r\nDomain`: $_ not submitted.  Rate limit exceeded for public API use.\r\n"
+                                } else {
+			                        Write-Output "$(Get-TimeStamp) ALERT - VirusTotal File Plugin Error. " | Out-File $runLog -Append
+			                        $vtStatus += "\r\nA PIE Plugin error has occured for this plugin.  Please contact your administrator.\r\n"
+		                        }
+                                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$vtStatus" -token $caseAPItoken
+                                $vtStatus += "\r\n====END - VirusTotal Domain====\r\n"
+                                echo $vtStatus.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
+                                                              
+                                #cleanup vars
+                                $vtResponseCode = ""
+                                $vtStatus = ""
+                                $vtPositives = ""
+                                $vtResponse = ""
+                                $vtFName = ""
+                                $vtHash = ""
+                                $tempThreat = ""
+	                        }
+	                        Write-Output "$(Get-TimeStamp) STATUS - End Virus Total Domain Plugin" | Out-File $runLog -Append
+                        } 
+	                    if ( $fileHashes.Length -gt 0 ) {
+		                    $fileHashes | ForEach-Object {
+                                #Set VirusTotal API clock
+                                if ($vtRunTime -eq $null) {
+                                    $vtRunTime = (Get-Date)
+                                    $vtQueryCount = 0
+                                } else {
+                                    $vtTestTime = (Get-Date)
+                                    $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
+                                    #If the time differene is greater than 4, reset the API use clock to current time.
+                                    if ($vtTimeDiff.Minutes -gt 0 ) {
+                                        $vtRunTime = (Get-Date)
+                                        $vtQueryCount = 0
+                                    }
+                                }
+			                    $vtFName = Split-Path -Path $($_.path) -Leaf
+			                    $vtHash = [string]$($_.hash)
+
+			                    Write-Output "$(Get-TimeStamp) INFO - Submitting file: $vtFName Hash: $vtHash" | Out-File $runLog -Append
+			                    $postParams = @{apikey="$virusTotalAPI";resource="$vtHash";}
+                                
+                                #Public API use vs Commercial logic block
+                                if ( $virusTotalPublic -eq $true ) {
+                                    $vtQueryCount = $vtQueryCount + 1
+                                    if ($vtQueryCount -lt 5) {
+                                        $vtResponse = iwr http://www.virustotal.com/vtapi/v2/file/report -Method POST -Body $postParams
+                                    } else {
+                                        $vtTestTime = (Get-Date)
+                                        $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
+                                        if ($vtTimeDiff.Minutes -gt 0 ) {
+                                            #If the time difference between time values is greater than 4, new submissions can be made.  Reset the API's run clock to now.
+                                            $vtRunTime = (Get-Date)
+                                            $vtResponse = iwr http://www.virustotal.com/vtapi/v2/file/report -Method POST -Body $postParams
+                                        } else {
+                                            #Set the vtResponseCode to -1.  -1 is a self defined value for exceeding the API limit.
+                                            $vtResponseCode = -1
+                                        }
+                                    }
+                                } elseif ( $virusTotalPublic -eq $false ) {
+                                    #If running under a commercial license, API call you like >:)
+                                    $vtResponse = iwr http://www.virustotal.com/vtapi/v2/file/report -Method POST -Body $postParams
+                                } 
+
+			                    $vtStatus = "====INFO - Virus Total File====\r\n"
+
+			                    $vtResponse = $vtResponse.Content | ConvertFrom-Json
+			                    $vtResponseCode = $vtResponse.response_code
+			                    if ($vtResponseCode -eq 1) {
+				                    $vtLink = $vtResponse.permalink
+
+				                    $vtPositives = [int]$vtResponse.positives
+				                    $VTTotal = $vtResponse.total
+				                    $VTScanDate = $vtResponse.scan_date
+
+				                    if ( $vtPositives -lt 1 ) {
+					                    $vtStatus += "Status: Benign\r\nFile`: $vtFName\r\nSHA256: $vtHash\r\n\r\nThe sample has been marked benign by $VTTotal Anti Virus engines."
+					                    Write-Output "$(Get-TimeStamp) INFO - File Benign" | Out-File $runLog -Append
+									
+				                    } elseif ( $vtPositives -gt 0 ) {
+					                    $vtStatus += "Status: Malicious\r\nFile`: $vtFName\r\nSHA256: $vtHash\r\n\r\nALERT: This sample has been flagged by $vtPositives/$VTTotal Anti Virus engines."
+					                    $threatScore += $vtPositives
+					                    Write-Output "$(Get-TimeStamp) INFO - File Malicious" | Out-File $runLog -Append
+				                    }
+
+				                    $vtStatus += "\r\n\r\nLast scanned by Virus Total on $VTScanDate.\r\nFull details available here: $vtLink."
+				                    Write-Host "Entry found in VT database"
+			                    } elseif ($vtResponseCode -eq 0) {
+				                    Write-Output "$(Get-TimeStamp) INFO - File not found in VT Database" | Out-File $runLog -Append
+				                    $vtStatus += "\r\nFile`: $vtFName not found in VirusTotal database.\r\n"
+			                    } else {
+				                    Write-Output "$(Get-TimeStamp) ALERT - VirusTotal File Plugin Error" | Out-File $runLog -Append
+				                    $vtStatus += "\r\nA PIE Plugin error has occured for this plugin.  Please contact your administrator.\r\n"
+			                    }
+								
+			                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$vtStatus" -token $caseAPItoken
+                                $vtStatus += "\r\n====END - VirusTotal FILE====\r\n"
+			                    echo $vtStatus.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
+                                #cleanup vars
+                                $vtStatus = ""
+                                $vtPositives = ""
+                                $vtResponse = ""
+                                $vtFName = ""
+                                $vtHash = ""
+		                    }
+	                    Write-Output "$(Get-TimeStamp) STATUS - End Virus Total File Plugin" | Out-File $runLog -Append
+	                    }
+                    } else {
+	                    Write-Output "$(Get-TimeStamp) ALERT - VirusTotal File Plugin Enabled but no API key provided" | Out-File $runLog -Append
+	                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "VirusTotal API key required to check / submit samples." -token $caseAPItoken
+                    }
+                    Write-Output "$(Get-TimeStamp) STATUS - End Virus Total Plugin" | Out-File $runLog -Append
+                }
+
                 # URLSCAN
                 if ( $urlscan -eq $true ) {
 			        if ( $scanLinks.length -gt 0 ) {
@@ -1416,8 +1669,8 @@ Case Folder:                 $caseID
                                     } else {
                                         $vtTestTime = (Get-Date)
                                         $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
-                                        #If the time differene is greater than 4, reset the API use clock to current time.
-                                        if ($vtTimeDiff.Minutes -gt 4 ) {
+                                        #If the time differene is greater than 1, reset the API use clock to current time.
+                                        if ($vtTimeDiff.Minutes -gt 0 ) {
                                             $vtRunTime = (Get-Date)
                                             $vtQueryCount = 0
                                         }
@@ -1437,7 +1690,7 @@ Case Folder:                 $caseID
                                             } else {
                                                 $vtTestTime = (Get-Date)
                                                 $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
-                                                if ($vtTimeDiff.Minutes -gt 4 ) {
+                                                if ($vtTimeDiff.Minutes -gt 0 ) {
                                                     #If the time difference between time values is greater than 4, new submissions can be made.  Reset the API's run clock to now.
                                                     $vtRunTime = (Get-Date)
                                                     $vtResponse = iwr http://www.virustotal.com/vtapi/v2/file/report -Method POST -Body $postParams
@@ -1571,29 +1824,6 @@ Case Folder:                 $caseID
                     }
                 }
 
-                # SHODAN
-                if ( $shodan -eq $true ) {
-			        if ( $scanDomains.length -gt 0 ) {
-                        Write-Output "$(Get-TimeStamp) STATUS - Begin Shodan" | Out-File $runLog -Append
-			
-				        echo "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
-				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-
-				        $scanDomains | ForEach-Object {
-					        echo "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
-                            Write-Output "$(Get-TimeStamp) INFO - Submitting domain: $_" | Out-File $runLog -Append
-					        & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
-
-				        }
-
-				        echo "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-				        echo "" >> "$caseFolder$caseID\spam-report.txt"
-                        Write-Output "$(Get-TimeStamp) STATUS - End Shodan" | Out-File $runLog -Append
-			        }
-                }
-
-
-
                 # OPEN DNS
                 if ( $openDNS -eq $true ) {
                     if ( $scanLinks.length -gt 0 ) {
@@ -1704,221 +1934,6 @@ Case Folder:                 $caseID
                     }
                 }
 
-				# VIRUS TOTAL - Plugin Block
-				if ( $virusTotal -eq $true ) {
-					if ( $virusTotalAPI ) {
-						Write-Output "$(Get-TimeStamp) STATUS - Start Virus Total" | Out-File $runLog -Append
-						if ( $scanDomains.length -gt 0 ) {
-							$scanDomains | ForEach-Object {
-                                #Set VirusTotal API clock
-                                if ($vtRunTime -eq $null) {
-                                    Write-Output "$(Get-TimeStamp) DEBUG - Setting Initial Virus Total Runtime" | Out-File $runLog -Append
-                                    $vtRunTime = (Get-Date)
-                                    $vtQueryCount = 0
-                                } else {
-                                    $vtTestTime = (Get-Date)
-                                    $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
-                                    #If the time differene is greater than 4, reset the API use clock to current time.
-                                    if ($vtTimeDiff.Minutes -gt 1 ) {
-                                        Write-Output "$(Get-TimeStamp) DEBUG - Virus Total Runtime Greater than 1" | Out-File $runLog -Append
-                                        Write-Output "$(Get-TimeStamp) DEBUG - Resetting Virus Total Runtime position" | Out-File $runLog -Append
-                                        $vtRunTime = (Get-Date)
-                                        $vtQueryCount = 0
-                                    }
-                                }
-								$vtStatus = "====INFO - Virus Total Domain====\r\n"
-
-								Write-Output "$(Get-TimeStamp) INFO - Submitting Domain $_" | Out-File $runLog -Append
-								$postParams = @{apikey="$virusTotalAPI";domain="$_";}
-
-                                #Public API use vs Commercial logic block
-                                if ( $virusTotalPublic -eq $true ) {
-                                    $vtQueryCount = $vtQueryCount + 1
-                                    if ($vtQueryCount -lt 5) {
-                                        Write-Output "$(Get-TimeStamp) DEBUG - Submitting Domain#: $vtQueryCount Domain: $_" | Out-File $runLog -Append
-                                        $vtResponse = iwr http://www.virustotal.com/vtapi/v2/domain/report -Method GET -Body $postParams
-                                        $vtResponse = $vtResponse.Content | ConvertFrom-Json
-                                        $vtResponseCode = $vtResponse.response_code
-                                    } else {
-                                        $vtTestTime = (Get-Date)
-                                        $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
-                                        if ($vtTimeDiff.Minutes -gt 1 ) {
-                                            #If the time difference between time values is greater than 1, new submissions can be made.  Reset the API's run clock to now.
-                                            $vtRunTime = (Get-Date)
-                                            $vtQueryCount = 1
-                                            Write-Output "$(Get-TimeStamp) DEBUG - Submitting Domain#: $vtQueryCount Domain: $_" | Out-File $runLog -Append
-                                            $vtResponse = iwr http://www.virustotal.com/vtapi/v2/domain/report -Method GET -Body $postParams
-                                            $vtResponse = $vtResponse.Content | ConvertFrom-Json
-                                            $vtResponseCode = $vtResponse.response_code
-                                        } else {
-                                            #Set the vtResponseCode to -1.  -1 is a self defined value for exceeding the API limit.
-                                            $vtResponseCode = -1
-                                        }
-                                    }
-                                } elseif ( $virusTotalPublic -eq $false ) {
-                                    #If running under a commercial license, API call you like >:)
-                                    $vtResponse = iwr http://www.virustotal.com/vtapi/v2/domain/report -Method GET -Body $postParams
-                                    $vtResponse = $vtResponse.Content | ConvertFrom-Json
-                                    $vtResponseCode = $vtResponse.response_code
-                                }
-                              
-
-                                if ($vtResponseCode -eq 1) {
-					                $vtLink = "https://www.virustotal.com/#/domain/$_"
-                    
-                                    $vtDomainUrls = $vtResponse.detected_urls
-                                    $vtStatus += "Scanned Domain: $_\r\n"
-                                    if ($vtResponse."Webutation info" -ne $null) {
-                                        $vtStatus += "Webutation Score:"+$vtResponse."Webutation domain info"."Safety score"+"  Verdict: "+$vtResponse."Webutation domain info".Verdict+"\r\n"
-                                    }
-                                    if ($vtResponse."TrendMicro category" -ne $null) {
-                                        $vtStatus += "TrendMicro Category: "+$vtResponse."TrendMicro category"+"\r\n"
-                                    }
-                                    if ($vtDomainUrls  -is [array] ) {
-						
-                                        for ($n=0; $n -lt $vtDomainUrls.Length; $n++) {
-							                $vtStatus += "\r\nURL"+$n+": "+$vtDomainUrls[$n].url+"\r\n"
-
-                                            if ( $vtDomainUrls[$n].positives -lt 2 ) {
-						        
-                                                $vtStatus += "The domain has been marked benign.\r\n"
-						                        Write-Output "$(Get-TimeStamp) INFO - Benign URL $($vtDomainUrls[$n].url)" | Out-File $runLog -Append
-									
-					                        } elseif ( $vtDomainUrls[$n].positives -gt 1 ) {
-						        
-                                                $vtStatus += "ALERT: This sample has been flagged by "+$vtDomainUrls[$n].positives+"/"+$vtDomainUrls[$n].total+" Anti Virus engines.\r\nScan Date: "+$vtDomainUrls[$n].scan_date+"\r\n"
-						                        $threatScore += [int]$vtDomainUrls[$n].positives
-						                        Write-Output "$(Get-TimeStamp) INFO - Malicious URL $($vtDomainUrls[$n].url)" | Out-File $runLog -Append
-					                        }
-                                            
-                                            #If maxium number of URLs exceeded, stop.
-                                            if ($n -eq 10) {
-                                                Write-Output "$(Get-TimeStamp) INFO - Maximum number of URLs reached.  Stopping URL report." | Out-File $runLog -Append
-                                                $vtStatus += "ALERT: Maximum number of URLs reached.  Visit report for full details.\r\n"
-                                                $n = $vtDomainUrls.Length
-                                            }
-						                }
-					                } else {
-						                $vtStatus += "ALERT: This sample has been flagged by "+$vtDomainUrls.positives+"/"+$vtDomainUrls.total+" Anti Virus engines.\r\nScan Date: "+$vtDomainUrls.scan_date+"\r\n"
-					                }
-                                    $vtStatus += "\r\nVirusTotal report: $vtLink"
-				                } elseif ($vtResponseCode -eq 0) {
-					                Write-Output "$(Get-TimeStamp) INFO - File not found in VT Database" | Out-File $runLog -Append
-					                $vtStatus += "\r\nDomain`: $_ not found in VirusTotal database.\r\n"
-				                } elseif ($vtResponseCode -eq -1) {
-                                    Write-Output "$(Get-TimeStamp) INFO - Domain: $_ not submitted to Virus Total.\r\nRate limit exceeded for public API use." | Out-File $runLog -Append
-					                $vtStatus += "\r\nDomain`: $_ not submitted.  Rate limit exceeded for public API use.\r\n"
-                                } else {
-					                Write-Output "$(Get-TimeStamp) ALERT - VirusTotal File Plugin Error" | Out-File $runLog -Append
-					                $vtStatus += "\r\nA PIE Plugin error has occured for this plugin.  Please contact your administrator.\r\n"
-				                }
-                                
-                                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$vtStatus" -token $caseAPItoken
-								$vtStatus += "\r\n====END - VirusTotal Domain====\r\n"
-                                echo $vtStatus.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
-                                                              
-                                #cleanup vars
-                                $vtResponseCode = ""
-                                $vtStatus = ""
-                                $vtPositives = ""
-                                $vtResponse = ""
-                                $vtFName = ""
-                                $vtHash = ""
-							}
-						    Write-Output "$(Get-TimeStamp) STATUS - End Virus Total Domain Plugin" | Out-File $runLog -Append
-                        } 
-						if ( $fileHashes.Length -gt 0 ) {
-							$fileHashes | ForEach-Object {
-                                #Set VirusTotal API clock
-                                if ($vtRunTime -eq $null) {
-                                    $vtRunTime = (Get-Date)
-                                    $vtQueryCount = 0
-                                } else {
-                                    $vtTestTime = (Get-Date)
-                                    $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
-                                    #If the time differene is greater than 4, reset the API use clock to current time.
-                                    if ($vtTimeDiff.Minutes -gt 4 ) {
-                                        $vtRunTime = (Get-Date)
-                                        $vtQueryCount = 0
-                                    }
-                                }
-								$vtFName = Split-Path -Path $($_.path) -Leaf
-								$vtHash = [string]$($_.hash)
-
-								Write-Output "$(Get-TimeStamp) INFO - Submitting file: $vtFName Hash: $vtHash" | Out-File $runLog -Append
-								$postParams = @{apikey="$virusTotalAPI";resource="$vtHash";}
-                                
-                                #Public API use vs Commercial logic block
-                                if ( $virusTotalPublic -eq $true ) {
-                                    $vtQueryCount = $vtQueryCount + 1
-                                    if ($vtQueryCount -lt 5) {
-                                        $vtResponse = iwr http://www.virustotal.com/vtapi/v2/file/report -Method POST -Body $postParams
-                                    } else {
-                                        $vtTestTime = (Get-Date)
-                                        $vtTimeDiff = New-TimeSpan -Start $vtRunTime -End $vtTestTime
-                                        if ($vtTimeDiff.Minutes -gt 4 ) {
-                                            #If the time difference between time values is greater than 4, new submissions can be made.  Reset the API's run clock to now.
-                                            $vtRunTime = (Get-Date)
-                                            $vtResponse = iwr http://www.virustotal.com/vtapi/v2/file/report -Method POST -Body $postParams
-                                        } else {
-                                            #Set the vtResponseCode to -1.  -1 is a self defined value for exceeding the API limit.
-                                            $vtResponseCode = -1
-                                        }
-                                    }
-                                } elseif ( $virusTotalPublic -eq $false ) {
-                                    #If running under a commercial license, API call you like >:)
-                                    $vtResponse = iwr http://www.virustotal.com/vtapi/v2/file/report -Method POST -Body $postParams
-                                } 
-
-								$vtStatus = "====INFO - Virus Total File====\r\n"
-
-								$vtResponse = $vtResponse.Content | ConvertFrom-Json
-								$vtResponseCode = $vtResponse.response_code
-								if ($vtResponseCode -eq 1) {
-									$vtLink = $vtResponse.permalink
-
-									$vtPositives = [int]$vtResponse.positives
-									$VTTotal = $vtResponse.total
-									$VTScanDate = $vtResponse.scan_date
-
-									if ( $vtPositives -lt 1 ) {
-										$vtStatus += "Status: Benign\r\nFile`: $vtFName\r\nSHA256: $vtHash\r\n\r\nThe sample has been marked benign by $VTTotal Anti Virus engines."
-										Write-Output "$(Get-TimeStamp) INFO - File Benign" | Out-File $runLog -Append
-									
-									} elseif ( $vtPositives -gt 0 ) {
-										$vtStatus += "Status: Malicious\r\nFile`: $vtFName\r\nSHA256: $vtHash\r\n\r\nALERT: This sample has been flagged by $vtPositives/$VTTotal Anti Virus engines."
-										$threatScore += $vtPositives
-										Write-Output "$(Get-TimeStamp) INFO - File Malicious" | Out-File $runLog -Append
-									}
-
-									$vtStatus += "\r\n\r\nLast scanned by Virus Total on $VTScanDate.\r\nFull details available here: $vtLink."
-									Write-Host "Entry found in VT database"
-								} elseif ($vtResponseCode -eq 0) {
-									Write-Output "$(Get-TimeStamp) INFO - File not found in VT Database" | Out-File $runLog -Append
-									$vtStatus += "\r\nFile`: $vtFName not found in VirusTotal database.\r\n"
-								} else {
-									Write-Output "$(Get-TimeStamp) ALERT - VirusTotal File Plugin Error" | Out-File $runLog -Append
-									$vtStatus += "\r\nA PIE Plugin error has occured for this plugin.  Please contact your administrator.\r\n"
-								}
-								
-								& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$vtStatus" -token $caseAPItoken
-                                $vtStatus += "\r\n====END - VirusTotal FILE====\r\n"
-								echo $vtStatus.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
-                                #cleanup vars
-                                $vtStatus = ""
-                                $vtPositives = ""
-                                $vtResponse = ""
-                                $vtFName = ""
-                                $vtHash = ""
-							}
-						Write-Output "$(Get-TimeStamp) STATUS - End Virus Total File Plugin" | Out-File $runLog -Append
-						}
-					} else {
-						Write-Output "$(Get-TimeStamp) ALERT - VirusTotal File Plugin Enabled but no API key provided" | Out-File $runLog -Append
-						& $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "VirusTotal API key required to check / submit samples." -token $caseAPItoken
-					}
-                    Write-Output "$(Get-TimeStamp) STATUS - End Virus Total Plugin" | Out-File $runLog -Append
-				}
 
                 # Wildfire
                 if ( $wildfire -eq $true ) {
@@ -2122,22 +2137,24 @@ Case Folder:                 $caseID
 
         
                 # ADD SPAMMER TO LIST
-                if ( $spammerList ) {
-                    Write-Output "$(Get-TimeStamp) STATUS - Begin update Spammer List" | Out-File $runLog -Append
-                    if ( $threatScore -gt $threatThreshold ) {
-                        if ( $spammer.Contains("@") -eq $true) {
+                if ($spamTracker -eq $true) {
+                    if ( $spammerList ) {
+                        Write-Output "$(Get-TimeStamp) STATUS - Begin update Spammer List" | Out-File $runLog -Append
+                        if ( $threatScore -gt 1 ) {
+                            if ( $spammer.Contains("@") -eq $true) {
                     
-                            & $pieFolder\plugins\List-API.ps1 -lrhost $LogRhythmHost -appendToList "$spammer" -listName "$spammerList" -token $caseAPItoken
-                            sleep 1
-                            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Spammer ($spammer) added to Threat List ($spammerList)" -token $caseAPItoken
+                                & $pieFolder\plugins\List-API.ps1 -lrhost $LogRhythmHost -appendToList "$spammer" -listName "$spammerList" -token $caseAPItoken
+                                sleep 1
+                                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Spammer ($spammer) added to Threat List ($spammerList)" -token $caseAPItoken
                 
-                        } else {
+                            } else {
+                                $spammerStatus = "====PIE - Add Spammer to List====\r\nUnable to extract the spammer's e-mail. \r\nManual analysis of message is required."
+                                & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase $spammerStatus -token $caseAPItoken
                 
-                            & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Unable to extract the spammer's email - manual analysis of the message is required" -token $caseAPItoken
-                
+                            }
                         }
+                        Write-Output "$(Get-TimeStamp) STATUS - End update Spammer List" | Out-File $runLog -Append
                     }
-                    Write-Output "$(Get-TimeStamp) STATUS - End update Spammer List" | Out-File $runLog -Append
                 }
                 #>
         
