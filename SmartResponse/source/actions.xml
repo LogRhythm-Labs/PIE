@@ -1,0 +1,115 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<remv1:Remediation-Plugin xmlns:remv1="RemediationVersion1.xsd" Name="O365 Ninja" Version="1" Guid="75753261-8d64-417f-b710-d90f1181ace5">
+
+  <!-- Nuke Mail from Sender -->
+  <remv1:Action Name="Office 365 : Quarantine Mail from Sender" Command="C:\Windows\System32\WindowsPowershell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file O365Ninja-SRP.ps1 -scrapeMail" Order="1" />
+    <remv1:StringParameter Name="Office 365 Username" Switch="-username " Order="2" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Office 365 Password" Switch="-password " Order="3" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Message Sender" Switch="-sender " Order="4">
+      <remv1:DefaultInput>
+        <remv1:Sender />
+      </remv1:DefaultInput>
+    </remv1:StringParameter>
+    <remv1:StringParameter Name="SOC Mailbox To Copy Mail To" Switch="-socMailbox " Order="5" />
+    <remv1:StringParameter Name="LogRhythm SIEM (optional)" Switch="-LogRhythmHost " Order="6" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Case API Token (optional)" Switch="-caseAPItoken " Order="7" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Delete Email? ($true / $false)" Switch="-nuke " Order="8" />
+  </remv1:Action>
+
+  <!-- Nuke Mail by Subject -->
+  <remv1:Action Name="Office 365 : Quarantine Mail by Subject" Command="C:\Windows\System32\WindowsPowershell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file O365Ninja-SRP.ps1 -scrapeMail" Order="1" />
+    <remv1:StringParameter Name="Office 365 Username" Switch="-username " Order="2" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Office 365 Password" Switch="-password " Order="3" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Message Subject" Switch="-subject " Order="4">
+      <remv1:DefaultInput>
+        <remv1:Subject />
+      </remv1:DefaultInput>
+    </remv1:StringParameter>
+    <remv1:StringParameter Name="SOC Mailbox To Copy Mail To" Switch="-socMailbox " Order="5" />
+    <remv1:StringParameter Name="LogRhythm SIEM (optional)" Switch="-LogRhythmHost " Order="6" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Case API Token (optional)" Switch="-caseAPItoken " Order="7" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Delete Email? ($true / $false)" Switch="-nuke " Order="8" />
+  </remv1:Action>
+
+  <!-- Nuke Mail by Recipient -->
+  <remv1:Action Name="Office 365 : Quarantine Mail by Recipient (DANGEROUS)" Command="C:\Windows\System32\WindowsPowershell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file O365Ninja-SRP.ps1 -scrapeMail" Order="1" />
+    <remv1:StringParameter Name="Office 365 Username" Switch="-username " Order="2" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Office 365 Password" Switch="-password " Order="3" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Message Recipient" Switch="-recipient " Order="4">
+      <remv1:DefaultInput>
+        <remv1:Recipient />
+      </remv1:DefaultInput>
+    </remv1:StringParameter>
+    <remv1:StringParameter Name="SOC Mailbox To Copy Mail To" Switch="-socMailbox " Order="5" />
+    <remv1:StringParameter Name="LogRhythm SIEM (optional)" Switch="-LogRhythmHost " Order="6" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Case API Token (optional)" Switch="-caseAPItoken " Order="7" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Delete Email? ($true / $false)" Switch="-nuke " Order="8" />
+  </remv1:Action>
+
+  <!-- Block Sender's Email -->
+  <remv1:Action Name="Office365 : Block Sender" Command="C:\Windows\System32\WindowsPowershell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file O365Ninja-SRP.ps1 -blockSender" Order="1" />
+    <remv1:StringParameter Name="Office 365 Username" Switch="-username " Order="2" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Office 365 Password" Switch="-password " Order="3" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Spammer" Switch="-sender " Order="4">
+      <remv1:DefaultInput>
+        <remv1:Sender />
+      </remv1:DefaultInput>
+    </remv1:StringParameter>
+    <remv1:StringParameter Name="LogRhythm SIEM (optional)" Switch="-LogRhythmHost " Order="5" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Case API Token (optional)" Switch="-caseAPItoken " Order="6" />
+    </remv1:EncryptedParameter>
+  </remv1:Action>
+
+  <!-- Reset End User's Password -->
+  <remv1:Action Name="Office 365 : Reset User Password" Command="C:\Windows\System32\WindowsPowershell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file O365Ninja-SRP.ps1 -resetPassword" Order="1" />
+    <remv1:StringParameter Name="Office 365 Username" Switch="-username " Order="2" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Office 365 Password" Switch="-password " Order="3" />
+    </remv1:EncryptedParameter>
+    <remv1:StringParameter Name="Target User Account" Switch="-targetMailbox " Order="4">
+      <remv1:DefaultInput>
+        <remv1:Sender />
+      </remv1:DefaultInput>
+    </remv1:StringParameter>
+    <remv1:StringParameter Name="LogRhythm SIEM (optional)" Switch="-LogRhythmHost " Order="5" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Case API Token (optional)" Switch="-caseAPItoken " Order="6" />
+    </remv1:EncryptedParameter>
+  </remv1:Action>
+
+  <!-- Add Spammer to Threat List -->
+  <remv1:Action Name="Office 365 : Add Spammer to List" Command="C:\Windows\System32\WindowsPowershell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file O365Ninja-SRP.ps1 -appendToList" Order="1" />
+    <remv1:StringParameter Name="Message Sender" Switch="-sender " Order="2">
+      <remv1:DefaultInput>
+        <remv1:Sender />
+      </remv1:DefaultInput>
+    </remv1:StringParameter>
+    <remv1:StringParameter Name="LogRhythm List Name" Switch="-spammerList " Order="3" />
+    <remv1:StringParameter Name="LogRhythm SIEM (optional)" Switch="-LogRhythmHost " Order="4" />
+    <remv1:EncryptedParameter>
+      <remv1:StringParameter Name="Case API Token (optional)" Switch="-caseAPItoken " Order="5" />
+    </remv1:EncryptedParameter>
+  </remv1:Action>
+
+</remv1:Remediation-Plugin>

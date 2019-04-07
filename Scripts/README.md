@@ -2,10 +2,9 @@
 
     Phishing Intelligence Engine
     LogRhythm Security Operations
-    greg . foss @ logrhythm . com
-    v1.0  --  November, 2017
+    v3.0  --  April, 2019
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 
@@ -34,5 +33,5 @@ If you are only looking for ongoing Message Trace logging, this script simply pu
 
 ## [License]
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<remv1:Remediation-Plugin xmlns:remv1="RemediationVersion1.xsd" Name="O365 SnC" Guid="00000000-0000-0000-3000-100000000007" Version="1" IsLogRhythmPlugin="false">
+  <remv1:Action Name="Search" Command="C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file 365_SnCtroller.ps1 " Order="1" />
+	<remv1:StringParameter Name="Username" Switch="-username " Order="2" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="Username" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+    <remv1:EncryptedParameter>
+		<remv1:StringParameter Name="Password" Switch="-password " Order="3" >
+			<remv1:DefaultInput>
+				<remv1:StaticInput Value="" />
+			</remv1:DefaultInput>
+		</remv1:StringParameter>
+	</remv1:EncryptedParameter>
+ 	<remv1:ConstantParameter Name="Command" Switch="-command Search " Order="4" />
+   	<remv1:StringParameter Name="ID" Switch="-id " Order="5" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="Unique Identifier" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Sender" Switch="-sender " Order="6" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Recipient" Switch="-recipient " Order="7" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Subject" Switch="-subject " Order="8" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Attachment Name" Switch="-attachmentName " Order="9" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+  </remv1:Action>
+  <remv1:Action Name="Search and Purge" Command="C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file 365_SnCtroller.ps1 " Order="1" />
+	<remv1:StringParameter Name="Username" Switch="-username " Order="2" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="Username" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+    <remv1:EncryptedParameter>
+		<remv1:StringParameter Name="Password" Switch="-password " Order="3" >
+			<remv1:DefaultInput>
+				<remv1:StaticInput Value="" />
+			</remv1:DefaultInput>
+		</remv1:StringParameter>
+	</remv1:EncryptedParameter>
+ 	<remv1:ConstantParameter Name="Command" Switch="-command SnP " Order="4" />
+   	<remv1:StringParameter Name="ID" Switch="-id " Order="5" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="Unique Identifier" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Sender" Switch="-sender " Order="6" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Recipient" Switch="-recipient " Order="7" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Subject" Switch="-subject " Order="8" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+	<remv1:StringParameter Name="Attachment Name" Switch="-attachmentName " Order="9" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+  </remv1:Action>
+  <remv1:Action Name="Purge" Command="C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe">
+    <remv1:ConstantParameter Name="Script" Switch="-file 365_SnCtroller.ps1 " Order="1" />
+	<remv1:StringParameter Name="Username" Switch="-username " Order="2" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="Username" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+    <remv1:EncryptedParameter>
+		<remv1:StringParameter Name="Password" Switch="-password " Order="3" >
+			<remv1:DefaultInput>
+				<remv1:StaticInput Value="" />
+			</remv1:DefaultInput>
+		</remv1:StringParameter>
+	</remv1:EncryptedParameter>
+ 	<remv1:ConstantParameter Name="Command" Switch="-command Purge " Order="4" />
+   	<remv1:StringParameter Name="ID" Switch="-id " Order="5" >
+		<remv1:DefaultInput>
+			<remv1:StaticInput Value="Unique Identifier" />
+		</remv1:DefaultInput>
+	</remv1:StringParameter>
+  </remv1:Action>
+</remv1:Remediation-Plugin>
