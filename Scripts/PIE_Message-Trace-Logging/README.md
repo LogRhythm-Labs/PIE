@@ -125,17 +125,13 @@ General risk information regarding links
 
 Known Malicious/Phishing Link Analytics
 
-[Shodan](https://shodan.io)
-
-Domain Interrogation and SSL Inspection
-
 [Sucuri](https://sucuri.net/)
+
+General Risk Information Regarding Links
 
 [urlScan](https://urlscan.io/)
 
 Take Screenshots of Links via Third Party
-
-General Risk Information Regarding Links
 
 [Swift On Security RegEx](https://github.com/SwiftOnSecurity/PhishingRegex)
 
@@ -175,6 +171,10 @@ Take Screenshots of Links via Third Party
 [Shodan](https://www.shodan.io/)
 
 Domain Analyitcs and Service Enumeration
+
+[Wildfire](https://www.paloaltonetworks.com/products/secure-the-network/wildfire)
+
+File Analytics
 
 [Wrike](https://www.wrike.com/)
 
