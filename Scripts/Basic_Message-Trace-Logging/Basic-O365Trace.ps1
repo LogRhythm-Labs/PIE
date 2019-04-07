@@ -2,11 +2,10 @@
   #====================================#
   # PIE - Phishing Intelligence Engine #
   # LogRhythm Security Operations      #
-  # greg . foss @ logrhythm . com      #
-  # v1.0  --  November, 2017           #
+  # v3.0  --  April 2019               #
   #====================================#
 
-# Copyright 2017 LogRhythm Inc.   
+# Copyright 2019 LogRhythm Inc.   
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 <#
@@ -19,7 +18,7 @@ INSTALL:
 
 USAGE:
 
-    Configure as a scheduled task to run every 5-minutes:
+    Configure as a scheduled task to run every 5 to 15 minutes:
         powershell.exe Invoke-O365Trace.ps1
 
 #>

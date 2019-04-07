@@ -1,10 +1,10 @@
 ﻿
   #====================================#
   # PIE - Phishing Intelligence Engine #
-  # v3.0  --  December 2018            #
+  # v3.0  --  April, 2019              #
   #====================================#
 
-# Copyright 2018 LogRhythm Inc.   
+# Copyright 2019 LogRhythm Inc.   
 # Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 <#
@@ -15,7 +15,7 @@ INSTALL:
         Add credentials under each specified section - Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from
 
-    Review Lines 90 through 174
+    Review Lines 103 through 174
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
 
@@ -35,7 +35,7 @@ $banner = @"
 "@
 
 # Mask errors
-$ErrorActionPreference= 'continue'
+$ErrorActionPreference= 'silentlycontinue'
 $VerbosePreference= 'continue'
 
 # ================================================================================
@@ -83,7 +83,7 @@ $pieFolder = "C:\PIE\INSTALLATION\DIRECTORY"
 $autoAuditMailboxes = $false
 
 # Case Tagging and User Assignment
-$defaultCaseTag = "phishing" # Default value - modify to match your case tagging schema. If this value does not exist, the script will not add the parameter to the case.
+$defaultCaseTag = "PIE" # Default value - modify to match your case tagging schema. Note "PIE" tag is used with the Case Management Dashboard.
 $caseOwner = "" # Primary case owner / SOC lead
 $caseCollaborators = ("lname1, fname1", "lname2, fname2") # Add as many users as you would like, separate them like so: "user1", "user2"...
 

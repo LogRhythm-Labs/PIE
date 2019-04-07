@@ -2,9 +2,9 @@
 
     Phishing Intelligence Engine
     LogRhythm Security Operations
-    v3.0  RC1 --  December, 2018
+    v3.0  --  April, 2019
 
-Copyright 2018 LogRhythm Inc. - See licensing details below
+Copyright 2019 LogRhythm Inc. - See licensing details below
 
 ## [About]
     
@@ -21,6 +21,35 @@ The Phishing Intelligence Engine (PIE) is a framework that will assist with the 
     - Sandbox analytics on all flagged email attachments and links.
     - Dynamic Case Management integration and metrics tracking.
     - Prevent sensitive data loss and verify corporate email security.
+
+#### 3.0 Updates:
+
+	- 365 Message Trace: Removed 5 minute runtime requirement.  Invoke-O365Trace.ps1 can be executed at any interval. 
+	- 365 Message Trace: Added support for .eml format e-mail submissions.
+	- 365 Message Trace: PIE execution log available under PIE/logs/pierun.txt.
+	- 365 Message Trace: Increased message processing threshold from 1,000 to 1,000,000 messages per execution.
+	- 365 Message Trace: Added handler for special characters in e-mail subject line.
+	- 365 Message Trace: Updated autoAuditMailboxes to support handling multiple matched entries.
+	- 365 Message Trace: Added support to filter out user@example.onmicrosoft.com from message counts.
+	- 365 Message Trace: Added URL whitelist to prevent scanning/analysis of frequenty legitimate sources.
+	- 365 Message Trace: New E-mail Address Template Config.
+	- 365 Message Trace: Parsing of Office 365 Safe Links is now automatic and does not require configuration.
+	- 365 Message Trace: Various Bug Fixes and execution improvements.
+	- LogRhythm Case: Added e-mail message text body to case notes.
+	- LogRhythm Case: Added e-mail links to case notes.
+	- LogRhythm Case: Added subjects to case notes.
+	- LogRhythm Dashboard: Added PIE Case Management dashboard template.
+	- Shodan Plugin: Now enumerates all services identified on host by Shodan.
+	- Shodan Plugin: Added handler for IP addresses that have not ben scanned by Shodan.
+	- Urlscan Plugin: New plugin.  Initiates URL scan for each URL and provides links to URLScan report and screenshot of the URL.
+	- Urlscan Plugin: Optional parameter to download screenshots locally to case folder.
+	- Urlscan/VirusTotal: If a link is direct to a file, the file's hash is submitted forward to VirusTotal and recorded.
+	- Urlscan/Wildfire: If a link is direct to a file, the file's hash is submitted forward to Wildfire and recorded.
+	- Sucuri Plugin: Updated to support Sucuri API v3.  Presents more in-depth information to the Case Report and LogRhythm Case.
+	- VirusTotal: Updated URL and File hash submission handlers.
+	- VirusTotal: Presents more in-depth information to the Case Report and LogRhythm Case.
+	- VirusTotal: Added support for Public API with submission rate limiting.  Commercial API use with no rate limit.
+	- SmartResponse: New SmartResponse 365-Security and Compliance Controller.  Supports the following actions: Compliance Search, Purge, Compliance Search & Purge.
 
 
 ## [Additional Information]
@@ -83,12 +112,14 @@ High level overview of the PIE architecture and workflow:
 
 This project would not be a success without the folks below and the various third-party API integration providers. Thank you!
 
-- [Jtekt](https://github.com/Jtekt) - Shodan Plugin, O365 Safelinks, bug fixes, and LR 7.3 API integration
+- [Jtekt](https://github.com/Jtekt) - PIE 3.0 Base, UrlScan Plugin, Shodan Plugin, O365 Safelinks, bug fixes, and LR 7.3 API integration
 - bruce deakyne -  Cisco AMP Threat GRID Plugin
+- Gewch, LogRhythm Community - Special character handler in e-mail subject line
 - jake reynolds - OpenDNS Plugin
 - julian crowley - Message Tracking Log Parsing
 - matt willems - LogRhythm Case API Plugin
 - shaunessy o'brien - PIE Logo
+- sslwater, LogRhythm Community - PIE Message Trace enhancements
 - steve warburton - User Acceptance Testing
 - zack rowland - Outlook Button
 - SwiftOnSecurity - Phishing RegEx
@@ -96,7 +127,7 @@ This project would not be a success without the folks below and the various thir
 
 ## [License]
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 
 PowerShell code is Licensed under the MIT License. See LICENSE file in the project root for full license information.
 

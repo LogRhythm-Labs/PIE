@@ -1,10 +1,9 @@
 
     Phishing Intelligence Engine
     LogRhythm Security Operations
-    greg . foss @ logrhythm . com
-    v2.0  --  August, 2018
+    v3.0  --  April, 2019
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 
@@ -57,13 +56,13 @@ This script handles the message trace logging, dynamic analytics, and automated 
 
 5) Open the Invoke-O365Trace.ps1 script and review the contents. You will need to add credentials and API keys where desired.
 
-    Review lines 43 through 89
+    Review lines 43 through 100
     
         Add credentials under each specified section (as documented in step 4)
         Review Office 365 Connectivity and LogRhythm Case API Integration
         Define the folder where you will deploy the Invoke-O365MessageTrace.ps1 script from ($logFolder variable)
 
-    Review Lines 90 through 154
+    Review Lines 103 through 174
 
         For each setting that you would like to enable, change the value from $false to $true
         For each enabled third party plugin, set the API key and other required paramters
@@ -78,7 +77,7 @@ This script handles the message trace logging, dynamic analytics, and automated 
 
     Don't worry about the warnings that are thrown - this is completely normal.
 
-8) Configure Invoke-O365Trace.ps1 to run as a scheduled task every 5 minutes.
+8) Configure Invoke-O365Trace.ps1 to run as a scheduled task every 15-minutes.
     
     C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -command "& 'C:\PIE_INSTALL_DIR\Invoke-O365Trace.ps1'"
 
@@ -132,6 +131,10 @@ Domain Interrogation and SSL Inspection
 
 [Sucuri](https://sucuri.net/)
 
+[urlScan](https://urlscan.io/)
+
+Take Screenshots of Links via Third Party
+
 General Risk Information Regarding Links
 
 [Swift On Security RegEx](https://github.com/SwiftOnSecurity/PhishingRegex)
@@ -141,6 +144,10 @@ Subject and Link RegEx Checks
 [URL Void](http://api.urlvoid.com/)
 
 Website Reputation Evaluation
+
+[VirusTotal](https://virustotal.com)
+
+Dynamic Link and File Analytics
 
 
 #### ----- Paid -----
@@ -165,9 +172,9 @@ Domain Analytics and Risk Analysis
 
 Take Screenshots of Links via Third Party
 
-[VirusTotal](https://virustotal.com)
+[Shodan](https://www.shodan.io/)
 
-Dynamic Link and File Analytics
+Domain Analyitcs and Service Enumeration
 
 [Wrike](https://www.wrike.com/)
 
@@ -178,7 +185,9 @@ And more coming soon...
 
 ## [Usage]
 
-The /logs/ directory will populate every time the Invoke-script is run. By default, this is configured to run evey 5-minutes.
+The /logs/ directory will populate every time the Invoke-script is run. By default, this is configured to run evey 15-minutes.
+
+PIE 3.0 includes a new log that reports the steps and actions taken on execution located under /logs/pierun.txt.  It's recommended to make use of a utility such as [BareTail](https://www.baremetalsoft.com/baretail/) when reviewing or troubleshooting PIE execution.
 
 If you configure the script to handle phishing attacks, you will be presented with a 'cases' folder. Each phishing attack will be given a folder, and associated evidence will be stored within If you enable LogRhythm Case integration, new cases will be created within the SIEM, allowing for collaboration, tracking, and automated metrics.
 
@@ -195,7 +204,8 @@ To maximize value from this script, couple this with Invoke-O365Ninja.ps1 for au
 Stay on top of the messages that are coming in, and develop custom AIE rules within the SIEM to detect and respond to these attacks.
 
 
+
 ## [License]
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
