@@ -1,9 +1,9 @@
 
     Message Tracking - BASIC
     LogRhythm Security Operations
-    v1.0  --  November, 2017
+    v3.0  --  April, 2019
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 
@@ -40,7 +40,7 @@ Basic-O365Trace.ps1 is a simple message tracking log aggregation script. This wi
 
 3) Set $logFolder value to the location where the Basic-O365Trace.ps1 script will run from.
 
-4) Configure Invoke-O365Trace.ps1 to run as a scheduled task every 5 minutes.
+4) Configure Invoke-O365Trace.ps1 to run as a scheduled task between 5 and 30 minutes.
     
     C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -command "& 'C:\MESASAGE_TRACE_FOLDER\Basic-O365Trace.ps1'"
 
@@ -68,5 +68,5 @@ Basic-O365Trace.ps1 is a simple message tracking log aggregation script. This wi
 
 ## [License]
 
-Copyright 2017 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.

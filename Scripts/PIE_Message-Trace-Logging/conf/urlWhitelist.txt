@@ -1,0 +1,4 @@
+http://www.w3.org
+https://www.w3.org
+http://schemas.microsoft.com
+https://schemas.microsoft.com

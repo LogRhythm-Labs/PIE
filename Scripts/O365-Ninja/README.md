@@ -3,7 +3,7 @@
     LogRhythm Security Operations
     v2.0  --  August, 2018
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 
@@ -113,5 +113,5 @@ To take advantage of the LogRhythm SIEM integrations, the following parameters a
 
 ## [License]
 
-Copyright 2018 LogRhythm Inc.   
+Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
