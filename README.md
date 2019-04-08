@@ -108,7 +108,7 @@ High level overview of the PIE architecture and workflow:
 ![PIE Architecture](/images/PIE-Architecture.png)
 
 
-## [Thanks]
+## [Thanks!]
 
 This project would not be a success without the folks below and the various third-party API integration providers. Thank you!
 
@@ -123,6 +123,11 @@ This project would not be a success without the folks below and the various thir
 - steve warburton - User Acceptance Testing
 - zack rowland - Outlook Button
 - SwiftOnSecurity - Phishing RegEx
+
+
+## [Lead Author]
+
+[Greg Foss](https://github.com/gfoss) - formerly of LogRhythm Labs
 
 
 ## [License]
