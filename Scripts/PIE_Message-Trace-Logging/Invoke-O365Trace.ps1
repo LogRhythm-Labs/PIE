@@ -203,6 +203,7 @@ $caseFolder = "$pieFolder\cases\"
 $tmpFolder = "$pieFolder\tmp\"
 $confFolder = "$pieFolder\conf\"
 $runLog = "$pieFolder\logs\pierun.txt"
+$headerCheckSum = "$tmpFolder\headerCheckSum.txt"
 $log = $true
 try {
     $lastLogDate = [DateTime]::SpecifyKind((Get-Content -Path $lastLogDateFile),'Utc')
@@ -485,17 +486,17 @@ if ( $log -eq $true) {
                 Write-Output "$(Get-TimeStamp) INFO - phishCount > 0" | Out-File $runLog -Append
                 # Set the initial Threat Score to 0 - increases as positive indicators for malware are observed during analysis
                 $threatScore = 0
-
                 # Extract reported messages
                 Write-Output "$(Get-TimeStamp) INFO - Parse Outlook messages" | Out-File $runLog -Append
                 $fileHashes = $null
                 foreach($message in $messages){
                     Write-Verbose "L400 - Outlook Message Subject: $($message.Subject)"
                     
+                    #Clear variable $msubject
+                    $msubject = $null
                     #Match known translation issues
-                    Write-Output "$(Get-TimeStamp) INFO - Filtering known bad characters for $($message.Subject)" | Out-File $runLog -Append
+                    Write-Output "$(Get-TimeStamp) INFO - Filtering known bad characters in `$message.Subject: $($message.Subject)" | Out-File $runLog -Append
                     
-					#Translate out of range characters to '?' - by Gewch - LR Community
                     #Created regex to identify any and all odd characters in subject and replace with ?
                     $specialPattern = "[^\u0000-\u007F]"
                     if ($($message.Subject) -Match "$specialPattern") { 
@@ -510,8 +511,9 @@ if ( $log -eq $true) {
 
                     Write-Output "$(Get-TimeStamp) DEBUG - Post filter `$reportedSubject: $reportedSubject" | Out-File $runLog -Append
                     Write-Output "$(Get-TimeStamp) DEBUG - Post filter `$message.Subject: $($message.subject)" | Out-File $runLog -Append
+                    Write-Output "$(Get-TimeStamp) DEBUG - Post filter `$msubject: $msubject" | Out-File $runLog -Append
 
-                    if ($($message.Subject -or $msubject) -eq $reportedSubject) {
+                    if ($($message.Subject) -eq $reportedSubject -OR $msubject -eq $reportedSubject) {
                         Write-Output "$(Get-TimeStamp) INFO - Outlook message.subject matched reported message Subject" | Out-File $runLog -Append
                         $msubject = $message.subject
                         $mBody = $message.body
@@ -2286,7 +2288,6 @@ Case Folder:                 $caseID
             $scanLinks = $null
             $scanDomains = $null
             $trueDat = $null
-            $msubject = $null
             $fileHashes = $null
         }
     }
