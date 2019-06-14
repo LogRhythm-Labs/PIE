@@ -203,7 +203,6 @@ $caseFolder = "$pieFolder\cases\"
 $tmpFolder = "$pieFolder\tmp\"
 $confFolder = "$pieFolder\conf\"
 $runLog = "$pieFolder\logs\pierun.txt"
-$headerCheckSum = "$tmpFolder\headerCheckSum.txt"
 $log = $true
 try {
     $lastLogDate = [DateTime]::SpecifyKind((Get-Content -Path $lastLogDateFile),'Utc')
