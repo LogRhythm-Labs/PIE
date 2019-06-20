@@ -1,7 +1,7 @@
 ﻿
   #====================================#
   # PIE - Phishing Intelligence Engine #
-  # v3.0  --  April, 2019              #
+  # v3.1  --  June, 2019               #
   #====================================#
 
 # Copyright 2019 LogRhythm Inc.   
@@ -92,6 +92,10 @@ $autoAuditMailboxes = $false
 
 # Set to true if internal e-mail addresses resolve to user@xxxx.onmicrosoft.com.  Typically true for test or lab 365 environments.
 $onMicrosoft = $false
+
+# PIE logging - Set to debug or info - output available under \logs\pierun.txt"
+$pieLogLevel = "debug"
+$pieLogVerbose = "True"
 
 # Set your local organization's e-mail format
 # 1 = firstname.lastname@example.com
@@ -244,10 +248,10 @@ function Get-TimeStamp {
 
 function Logger {
     Param(
-        $logLevel = $tackleLevel,
+        $logLevel = $pieLogLevel,
         $logSev,
         $Message,
-        $Verbose = $tackleVerbose
+        $Verbose = $pieLogVerbose
     )
     $cTime = "[{0:MM/dd/yy} {0:HH:mm:ss}]" -f (Get-Date)
     #Create phishLog if file does not exist.
