@@ -96,6 +96,7 @@ $onMicrosoft = $false
 # PIE logging - Set to debug or info - output available under \logs\pierun.txt"
 $pieLogLevel = "debug"
 $pieLogVerbose = "True"
+$pluginLogLevel = "debug"
 
 # Set your local organization's e-mail format
 # 1 = firstname.lastname@example.com
@@ -2445,7 +2446,7 @@ Case Folder:                 $caseID
                             $scanDomains | ForEach-Object {
                                 Write-Output "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
                                 Logger -logSev "i" -Message "Submitting domain: $_"
-                                & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+                                & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken -pluginLogLevel $pluginLogLevel -runLog $runLog
     
                             }
     

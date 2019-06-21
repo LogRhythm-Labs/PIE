@@ -31,7 +31,9 @@ param(
     [string]$caseFolder,
     [string]$pieFolder,
     [string]$LogRhythmHost,
-    [string]$caseAPItoken
+    [string]$caseAPItoken,
+    [string]$pluginLogLevel,
+    [string]$runLog
 )
 
 
@@ -47,23 +49,71 @@ $shodanHostDetails = $true
 $shodanSSLDetails = $true
 $shodanGameDetails = $true
 
+if ( $pluginLogLevel -eq $null) {
+    $pluginLogLevel = "debug"
+}
+
+function Logger {
+    Param(
+        $logLevel = $pluginLogLevel,
+        $logSev,
+        $Message
+    )
+    $cTime = "[{0:MM/dd/yy} {0:HH:mm:ss}]" -f (Get-Date)
+    #Create phishLog if file does not exist.
+    if ( $(Test-Path $runLog -PathType Leaf) -eq $false ) {
+        Set-Content $runLog -Value "PIE Powershell Runlog for $date"
+        Write-Output "$cTime ALERT - No runLog detected.  Created new $runLog" | Out-File $runLog
+    }
+    if ($LogLevel -like "info" -Or $LogLevel -like "debug") {
+        if ($logSev -like "s") {
+            Write-Output "$cTime STATUS - $Message" | Out-File $runLog -Append
+        } elseif ($logSev -like "a") {
+            Write-Output "$cTime ALERT - $Message" | Out-File $runLog -Append
+        } elseif ($logSev -like "e") {
+            Write-Output "$cTime ERROR - $Message" | Out-File $runLog -Append
+        }
+    }
+    if ($LogSev -like "i") {
+        Write-Output "$cTime INFO - $Message" | Out-File $runLog -Append
+    }
+    if ($LogSev -like "d") {
+        Write-Output "$cTime DEBUG - $Message" | Out-File $runLog -Append
+    }
+    Switch ($logSev) {
+        e {$logSev = "ERROR"}
+        s {$logSev = "STATUS"}
+        a {$logSev = "ALERT"}
+        i {$logSev = "INFO"}
+        d {$logSev = "DEBUG"}
+        default {$logSev = "LOGGER ERROR"}
+    }
+    if ( $Verbose -eq "True" ) {
+        Write-Host "$cTime - $logSev - $Message"
+    }
+}
+
 # Query DNS and obtain domain IP address
 try {
     $shodanIPQuery = Invoke-RestMethod "https://api.shodan.io/dns/resolve?hostnames=$link&key=$key"
+    Logger -logSev "d" -Message "Performed Shodan DNS inquiry for url: $link"
 } catch {
     $error =  $_ | Select-String "error"
     Write-Host $error
     Write-Host "Status Code: $($_.Exception.Response.StatusCode.value__)"
     Write-Host "Status Description: $($_.Exception.Response.StatusDescription)"
     $status = "== Shodan Scan Info ==\r\nError on API call\r\nStatus Code: $($_.Exception.Response.StatusCode.value__)\r\nStatus Description: $($_.Exception.Response.StatusDescription)"
+    Logger -logSev "e" -Message "Error on API call. Status Code: $($_.Exception.Response.StatusCode.value__)"
 }
 #$shodanIPQuery = Invoke-RestMethod "https://api.shodan.io/dns/resolve?hostnames=$link&key=$key"
 if ($shodanIPQuery -ne $null) {
     $shodanIPQuery | Where-Object -Property $link -Match $IPregex
     $shodanIP = $Matches.Address
+    Logger -logSev "d" -Message "Shodan returned DNS result $link`:$shodanIP"
     $shodanLink = "https://www.shodan.io/host/$shodanIP"
 } else {
     $shodanIP = Resolve-DnsName -Name $link -Type A
+    Logger -logSev "d" -Message "Shodan returned zero DNS results.  Performed local DNS lookup $link`:$($shodanIP[0].IpAddress)"
     $shodanLink = "https://www.shodan.io/host/$($shodanIP[0].IpAddress)"
 }
 
@@ -78,6 +128,7 @@ if ($shodanIP) {
         Write-Host "Status Code: $($_.Exception.Response.StatusCode.value__)"
         Write-Host "Status Description: $($_.Exception.Response.StatusDescription)"
         $status = "== Shodan Scan Info ==\r\nError on API call\r\nStatus Code: $($_.Exception.Response.StatusCode.value__)\r\nStatus Description: $($_.Exception.Response.StatusDescription)"
+        Logger -logSev "e" -Message "Error on API call.  Status Code: $($_.Exception.Response.StatusCode.value__)"
     }
     #Host Details
     if ( $shodanHostDetails -eq $true ) {
@@ -137,29 +188,36 @@ if ($shodanIP) {
             if ( $($shodanCert.cert.expired) -eq $true ) {
                 $status += "\r\nALERT: Expired Certificate Detected!"
                 $threatScore += 1
+                Logger -logSev "a" -Message "Expired Certificate Detected!"
             }
             if ( $($shodanCert.cert.issuer) -imatch "Let's Encrypt" ) {
                 $status += "\r\nALERT: Let's Encrypt Certificate Authority Detected!"
-                $threatScore += 1        
+                $threatScore += 1
+                Logger -logSev "i" -Message "Let's Encrypt Certificate Authority Detected."
             } elseif ( $($shodanHostInfo.data[$i].tags) -imatch "self-signed" ) {
                 $status += "\r\nALERT: Self Signed Certificate Detected!"
                 $threatScore += 1
+                Logger -logSev "a" -Message "Self Signed Certificate Detected!"
             }
         }
         #FTP
         if ( $shodanHostInfo.data[$i]._shodan.module -eq "ftp" ) {
             $status += "\r\nAnonymous Login: $($shodanHostInfo.data[$i].ftp.anonymous)"
             $threatScore += 1
+            Logger -logSev "a" -Message "Anonymous FTP Login Detected!"
         }   
     }
     $status += "\r\n\r\n**** End Service Summary ****"
     $status += "\r\n\r\nLast scanned on $($shodanHostInfo.last_update).  Full details available here: $shodanLink."
+    Logger -logSev "i" -Message "LogRhythm API - Submitting Shodan results to Case"
     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$status" -token $caseAPItoken
     $status += "\r\n**** End Shodan Entry for $link ****\r\n\r\n"
-    echo $status.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
+    Write-Output $status.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
 }
 else {
     $status = "====INFO - SHODAN====\r\nUnable to determine IP address for $link."
+    Logger -logSev "i" -Message "LogRhythm API - Unable to determine IP address for $link."
+    Logger -logSev "i" -Message "LogRhythm API - Submitting Shodan results to Case"
     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$status" -token $caseAPItoken
-    echo $status.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
+    Write-Output $status.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
 }
