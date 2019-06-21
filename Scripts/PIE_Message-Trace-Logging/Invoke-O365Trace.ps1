@@ -156,6 +156,8 @@ $phishTankAPI = ""
 # Shodan.io
 $shodan = $false
 $shodanAPI = ""
+# Set the required threatScore required for plugin.  
+$shodanInitThreat = 2
 
 # Screenshot Machine
 $screenshotMachine = $false
@@ -1458,27 +1460,6 @@ Case Folder:                 $caseID
 # ================================================================================
 #
                 Logger -logSev "s" -Message "Begin Third Party Plugins"
-				# SHODAN
-                if ( $shodan -eq $true ) {
-			        if ( $scanDomains.length -gt 0 ) {
-                        Logger -logSev "s" -Message "Begin Shodan"
-			
-				        Write-Output "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
-				        Write-Output "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-
-				        $scanDomains | ForEach-Object {
-                            Write-Output "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
-					        Logger -logSev "i" -Message "Submitting domain: $_"
-					        & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
-
-				        }
-
-				        Write-Output "============================================================" >> "$caseFolder$caseID\spam-report.txt"
-				        Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
-                        Logger -logSev "s" -Message "End Shodan"
-			        }
-                }
-				
                 # WRIKE
                 if ( $wrike -eq $true ) {
                     Logger -logSev "s" -Message "Begin Wrike"
@@ -2455,7 +2436,32 @@ Case Folder:                 $caseID
                     Logger -logSev "s" -Message "End ThreatGrid"
                 }
 
-        
+				# SHODAN
+                if ( $shodan -eq $true ) {
+                    Logger -logSev "s" -Message "Begin Shodan"
+                    if ( $threatScore -ge $shodanInitThreat ) {
+                        Logger -logSev "d" -Message "ThreatScore:$threatScore is greater than or equal to shodanInitThreat:$shodanInitThreat"
+                        if ( $scanDomains.length -gt 0 ) {
+                
+                            Write-Output "Shodan.io" >> "$caseFolder$caseID\spam-report.txt"
+                            Write-Output "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+    
+                            $scanDomains | ForEach-Object {
+                                Write-Output "Shodan Analysis: $_" >> "$caseFolder$caseID\spam-report.txt"
+                                Logger -logSev "i" -Message "Submitting domain: $_"
+                                & $pieFolder\plugins\Shodan.ps1 -key $shodanAPI -link $_ -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken
+    
+                            }
+    
+                            Write-Output "============================================================" >> "$caseFolder$caseID\spam-report.txt"
+                            Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
+                            Logger -logSev "s" -Message "End Shodan"
+                        }
+                    }
+                }
+
+                Logger -logSev "s" -Message "End Third Party Plugins"
+                Logger -logSev "s" -Message "Begin Auto-Remediation Block"
                 # ADD SPAMMER TO LIST
                 if ($spamTracker -eq $true) {
                     if ( $spammerList ) {
@@ -2545,6 +2551,7 @@ Case Folder:                 $caseID
 
                     Logger -logSev "s" -Message "End AUTO BAN Block"
                 }
+                Logger -logSev "s" -Message "End Auto-Remediation Block"
 
 # ================================================================================
 # Case Closeout
