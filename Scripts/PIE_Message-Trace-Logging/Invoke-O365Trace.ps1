@@ -87,6 +87,11 @@ $defaultCaseTag = "PIE" # Default value - modify to match your case tagging sche
 $caseOwner = "" # Primary case owner / SOC lead
 $caseCollaborators = ("lname1, fname1", "lname2, fname2") # Add as many users as you would like, separate them like so: "user1", "user2"...
 
+# Phishing Playbook Assignment
+$casePlaybook = "Phishing"
+# Assign the playbookwhen the case ThreatScore reaches or exceeds casePlaybookThreat
+$casePlaybookThreat = 0
+
 # Auto-auditing mailboxes.  Set to $true if you'd like to automatically enable auditing on new O365 mailboxes
 $autoAuditMailboxes = $false
 
@@ -2454,7 +2459,10 @@ Case Folder:                 $caseID
                             Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
                             Logger -logSev "s" -Message "End Shodan"
                         }
+                    } else {
+                        Logger -logSev "d" -Message "ThreatScore:$threatScore is less than shodanInitThreat:$shodanInitThreat"
                     }
+                    Logger -logSev "s" -Message "End Shodan"
                 }
 
                 Logger -logSev "s" -Message "End Third Party Plugins"
@@ -2557,6 +2565,18 @@ Case Folder:                 $caseID
                 # Final Threat Score
                 Logger -logSev "i" -Message "LogRhythm API - Add Threat Score"
                 & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Email Threat Score: $threatScore" -token $caseAPItoken
+                
+                Logger -logSev "s" -Message "Begin LogRhythm Playbook Block"
+                if ($casePlaybook -and ($threatScore -ge $casePlaybookThreat)) {
+                    Logger -logSev "i" -Message "LogRhythm API - Adding Playbook:$casePlaybook to Case:$caseNumber"
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -addPlaybook "$casePlaybook" -token $caseAPItoken
+                } elseif ($casePlaybook -and ($threatScore -lt $casePlaybookThreat)) {
+                    Logger -logSev "i" -Message "LogRhythm API - Playbook Omision - Threatscore is less than casePlaybookThreat"
+                } else {
+                    Logger -logSev "i" -Message "LogRhythm API - Playbook Omision - Playbook not defined"
+                }
+
+                Logger -logSev "s" -Message "End LogRhythm Playbook Block"
 
                 Logger -logSev "i" -Message "Spam-report Case closeout"
                 Write-Output "============================================================" >> "$caseFolder$caseID\spam-report.txt"
