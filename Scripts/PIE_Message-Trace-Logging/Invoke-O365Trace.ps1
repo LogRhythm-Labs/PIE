@@ -395,10 +395,10 @@ try {
 # ================================================================================
 # MEAT OF THE PIE
 # ================================================================================
-Write-Output "$(Get-TimeStamp) INFO - Check for new reports " | Out-File $runLog -Append
+Logger -logSev "i" -Message "Check for New Reports"
 if ( $log -eq $true) {
     if ( $autoAuditMailboxes -eq $true ) {
-        Logger -logSev "i" -Message "Started Inbox Audit Update"
+        Logger -logSev "s" -Message "Started Inbox Audit Update"
         # Check for mailboxes where auditing is not enabled and is limited to 1000 results
         $UnauditedMailboxes=(Get-Mailbox -Filter {AuditEnabled -eq $false}).Identity
         $UAMBCount=$UnauditedMailboxes.Count
@@ -422,7 +422,7 @@ if ( $log -eq $true) {
             Write-Host "Finished attempting to enable auditing on $UAMBCount mailboxes." -ForegroundColor Yellow
         }
         if ($UAMBCount -eq 0){} # Do nothing, all mailboxes have auditing enabled.
-        Logger -logSev "i" -Message "Completed Inbox Audit Update"
+        Logger -logSev "s" -Message "Completed Inbox Audit Update"
     }
 
     #Create phishLog if file does not exist.
@@ -864,7 +864,6 @@ if ( $log -eq $true) {
                         [Reflection.Assembly]::LoadWithPartialName("System.Web") | Out-Null
                         Logger -logSev "i" -Message "Parsing Links"
                         foreach ($link in $getLinks) {
-                            Write-Output "$(Get-TimeStamp) DEBUG - Link Before: $link" | Out-File $runLog -Append
                             if ($link -like "*originalsrc*" ) {
                                 Logger -logSev "d" -Message "Original Source Safelink Before: $link"
                                 $link = @(@($link.Split("`"")[1]))
@@ -1008,7 +1007,6 @@ if ( $log -eq $true) {
                             $msg.attachments|ForEach-Object {
                                 $phishingAttachment = $_.filename
                                 Logger -logSev "d" -Message "Attachment Name: $phishingAttachment"
-                                Write-Output "$(Get-TimeStamp) DEBUG - Attachment Name: $phishingAttachment" | Out-File $runLog -Append
                                 Logger -logSev "i" -Message "Checking attachment against interestingFilesRegex"
                                 If ($phishingAttachment -match $interestingFilesRegex) {
                                     Logger -logSev "d" -Message "Saving Attachment to destination: $tmpFolder\attachments\$attachmentName"
@@ -1353,7 +1351,6 @@ Case Folder:                 $caseID
         
                 # Append Case Info to 
                 Logger -logSev "i" -Message "LogRhythm - Adding case info to spam-report"
-                Write-Output "$(Get-TimeStamp) INFO - Appending Case info to spam-report" | Out-File $runLog -Append
                 Write-Output "LogRhythm Case Information:" >> "$caseFolder$caseID\spam-report.txt"
                 Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
                 Write-Output "Case #:      $caseNumber" >> "$caseFolder$caseID\spam-report.txt"
@@ -1696,7 +1693,7 @@ Case Folder:                 $caseID
                                 }
 		                        $vtStatus = "====INFO - Virus Total Domain====\r\n"
 
-		                        Write-Output "$(Get-TimeStamp) INFO - Submitting Domain $_" | Out-File $runLog -Append
+                                Logger -logSev "d" -Message "Submitting Domain $_"
 		                        $postParams = @{apikey="$virusTotalAPI";domain="$_";}
 
                                 #Public API use vs Commercial logic block
@@ -1922,10 +1919,9 @@ Case Folder:                 $caseID
 				        }
 
                         if ((Test-Path -Path "$caseFolder$caseID\urlScan\hashes.txt" -PathType Leaf)) {
-                            Logger -logSev "i" -Message "urlScan to Wildfire file hash submission"
                             # Wildfire Integration: submits file hashes for URL direct download files
                             if ( $wildfire -eq $true ) {
-                                Write-Output "$(Get-TimeStamp) INFO - urlScan to Wildfire file submission" | Out-File $runLog -Append
+                                Logger -logSev "i" -Message "urlScan to Wildfire file hash submission"
                                 $urlscanHashes = Get-Content "$caseFolder$caseID\urlScan\hashes.txt"
                                 Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
                                 if ( $urlscanHashes.Length -gt 0 ) {
@@ -2245,8 +2241,8 @@ Case Folder:                 $caseID
 				        Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
 
 				        $fileHashes | ForEach-Object {
-					        $wfFName = Split-Path -Path $($_.path) -Leaf
-                            Write-Output "$(Get-TimeStamp) INFO - Submitting file: $wfFName Hash: $($_.hash)" | Out-File $runLog -Append
+                            $wfFName = Split-Path -Path $($_.path) -Leaf
+                            Logger -logSev "s" -Message "Submitting file: $wfFName Hash: $($_.hash)"
 					        Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
 					        Write-Output "Wildfire Analysis: File: $caseFolder$caseID\attachments\$wfFName Hash: $($_.hash)" >> "$caseFolder$caseID\spam-report.txt"
 					        & $pieFolder\plugins\Wildfire.ps1 -key $wildfireAPI -fileHash $($_.hash) -fileName $wfFName -caseID $caseID -caseFolder "$caseFolder" -pieFolder "$pieFolder" -logRhythmHost $logRhythmHost -caseAPItoken $caseAPItoken

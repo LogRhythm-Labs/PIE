@@ -1,7 +1,7 @@
 
     Phishing Intelligence Engine
     LogRhythm Security Operations
-    v3.0  --  April, 2019
+    v3.1  --  June, 2019
 
 Copyright 2019 LogRhythm Inc.   
 Licensed under the MIT License. See LICENSE file in the project root for full license information.
