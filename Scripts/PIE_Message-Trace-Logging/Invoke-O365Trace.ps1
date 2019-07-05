@@ -710,7 +710,7 @@ if ( $log -eq $true) {
 
                         #Headers
                         Logger -logSev "d" -Message "Processing Headers"
-                        $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -Like "*header*"
+                        $headers = $msg.BodyPart.Fields | select Name, Value | Where-Object name -Like "*header*" | Format-List
                         Logger -logSev "d" -Message "Writing Headers: $tmpFolder\headers.txt"
                         Try {
                             Write-Output $headers > "$tmpFolder\headers.txt"
