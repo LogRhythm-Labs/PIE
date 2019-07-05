@@ -27,6 +27,8 @@ The Phishing Intelligence Engine (PIE) is a framework that will assist with the 
 	- 365 Message Trace: Added url decryptor for Proofpoint URL Rewrite services.
 	- 365 Message Trace: Added additional error checking and handling.
 	- 365 Message Trace: Updated PIE execution log available under PIE/logs/pierun.txt.
+	- 365 Message Trace: Now supports Office 365 URL-Trace.  Provides SafeLinks click report.
+	- 365 Message Trace: Added hashes.txt to case folder and notes for all identified e-mail attachments.
 	- 365 Message Trace: Various Bug Fixes and execution improvements.
 	- LogRhythm Case: Ability to assign playbooks to case.  Requires LogRhythm 7.4 or higher.
 	- Shodan Plugin: Added ThreatScore requirement as a configuration option. 
