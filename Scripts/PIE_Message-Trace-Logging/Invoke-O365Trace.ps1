@@ -1398,12 +1398,12 @@ Case Folder:                 $caseID
                 if ( $fileHashes ) {
                     Logger -logSev "i" -Message "LogRhythm API - Copying file hashes to case"
                     Try {
-                        $fileHashes= (Get-Content "$caseFolder$caseID\hashes.txt") -join "\r\n"
+                        $caseHashes= (Get-Content "$caseFolder$caseID\hashes.txt") -join "\r\n"
                     } Catch {
                         Logger -logSev "e" -Message "Unable to read file $caseFolder$caseID\hashes.txt"
                     }
                     
-                    & $tackleFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Hashes:\r\n$fileHashes" -token $caseAPItoken -pluginLogLevel $pluginLogLevel -runLog $runLog
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Hashes:\r\n$caseHashes" -token $caseAPItoken -pluginLogLevel $pluginLogLevel -runLog $runLog
                 }
 
 
