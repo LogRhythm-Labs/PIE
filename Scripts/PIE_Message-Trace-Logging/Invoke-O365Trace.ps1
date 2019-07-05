@@ -158,7 +158,7 @@ $phishTank = $false
 $phishTankAPI = ""
 
 # 365 SafeLinks URL Trace
-$safelinkTrace = $true
+$safelinkTrace = $false
 
 # Shodan.io
 $shodan = $false
