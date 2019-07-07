@@ -1125,13 +1125,13 @@ if ( $log -eq $true) {
                 Logger -logSev "s" -Message "Begin ShortLink parser"
                 if ( $scanLinks ) {
                     Logger -logSev "i" -Message "Begin ShortLink parser"
+                    $shortList = @{}
                     [System.Collections.ArrayList]$shortCutList = @($null)
                     [System.Collections.ArrayList]$shortAddList = @($null)
                     for ($i=0; $i -lt $scanLinks.Count; $i++) {
                         Logger -logSev "d" -Message "Inspecting url: $($scanLinks[$i]) For loop step: $i"
                         if ( $($scanLinks[$i]) -match "bit.ly/" -or $($scanLinks[$i]) -match "t.co/" -or $($scanLinks[$i]) -match "x.co/" -or $($scanLinks[$i]) -match "tiny.cc/" -or $($scanLinks[$i]) -match "goo.gl/" -or $($scanLinks[$i]) -match "tinyurl.com/") {
                             Logger -logSev "i" -Message "Shortlink detected: $($scanLinks[$i])"
-                            
                             $shortURL = $($scanLinks[$i])
                             Do {
                                 Logger -logSev "d" -Message "Invoking headers.location request to: $shortURL"
@@ -1147,6 +1147,8 @@ if ( $log -eq $true) {
                             # Define the Loop Condition
                             } Until ($shortURL -eq $null)
                             
+                            $shortList.Add( $($scanLinks[$i]) , $shortDestination)
+                            
                             # Update expanded link destinations array
                             Try {
                                 $shortAddList.Add( "$shortDestination" )
@@ -1159,7 +1161,6 @@ if ( $log -eq $true) {
                             } Catch {
                                 Logger -logSev "e" -Message "Attempting to add variable scanLinks[i]:$($scanLinks[$i]) to array:shortAddList"
                             }
-                            
                         }
                     }
                 
@@ -1194,8 +1195,7 @@ if ( $log -eq $true) {
                                 }
                                 Try {
                                     Logger -logSev "i" -Message "Adding expanded link: $_ to $tmpFolder\links.txt"
-                                    $_ >> "$tmpFolder\links.txt"
-                
+                                    Add-Content "$tmpFolder\links.txt" $_
                                 } Catch {
                                     Logger -logSev "e" -Message "ShortLinks - Unable to Write to File $tmpFolder\links.txt"
                                 }
@@ -1208,7 +1208,7 @@ if ( $log -eq $true) {
                                 }
                                 Try {
                                     Logger -logSev "i" -Message "Adding expanded link: $_ to $tmpFolder\domains.txt"
-                                    $tmpDomain >> "$tmpFolder\domains.txt"
+                                    Add-Content "$tmpFolder\domains.txt" $tmpDomain
                                 } Catch {
                                     Logger -logSev "e" -Message "ShortLinks - Unable to Write to File $tmpFolder\domains.txt"
                                 }
@@ -1523,6 +1523,18 @@ Case Folder:                 $caseID
                     Logger -logSev "i" -Message "LogRhythm API - Copying links to case"
                     $messageLinks= (Get-Content "$caseFolder$caseID\links.txt") -join "\r\n"
                     & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "Links:\r\n$messageLinks" -token $caseAPItoken -pluginLogLevel $pluginLogLevel -runLog $runLog
+                }
+
+                # Observed ShortLinks
+                if ( $shortList.count -gt 0 ) {
+                    Logger -logSev "i" -Message "LogRhythm API - Copying expanded ShortLinks to case"
+                    $shortStatus = "====INFO - ShortLinks Report====\r\n"
+                    foreach ($key in $shortList.keys ) {
+                        Logger -logSev "d" -Message "Origin URL: $key Destination URL:$($shortlist[$key])"
+                        $shortStatus += "$key expanded to $($shortlist[$key])\r\n"
+                    }
+                    & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$shortStatus" -token $caseAPItoken -pluginLogLevel $pluginLogLevel -runLog $runLog
+                    Write-Output $shortStatus.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
                 }
 
                 # Observed Files
