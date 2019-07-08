@@ -2817,6 +2817,7 @@ Case Folder:                 $caseID
             $shortDestination = $null
             $shortExpanded = $null
             $shortURL = $null
+            $shortList = $null
         }
     }
 }
