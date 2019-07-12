@@ -404,23 +404,30 @@ try {
 Logger -logSev "i" -Message "Check for New Reports"
 if ( $log -eq $true) {
     if ( $autoAuditMailboxes -eq $true ) {
-        Logger -logSev "s" -Message "Started Inbox Audit Update"
+        Logger -logSev "s" -Message "Begin Inbox Audit Update"
         # Check for mailboxes where auditing is not enabled and is limited to 1000 results
         $UnauditedMailboxes=(Get-Mailbox -Filter {AuditEnabled -eq $false}).Identity
         $UAMBCount=$UnauditedMailboxes.Count
         if ($UAMBCount -gt 0){
             Write-Host "Attempting to enable auditing on $UAMBCount mailboxes, please wait..." -ForegroundColor Cyan
             Logger -logSev "d" -Message "Attempting to enable auditing on $UAMBCount mailboxes"
-            $UnauditedMailboxes | % { 
+            $UnauditedMailboxes | ForEach-Object { 
                 Try {
                     $auditRecipient = Get-Recipient $_
-                    Set-Mailbox -Identity $_ -AuditDelegate SendAs,SendOnBehalf,Create,Update,SoftDelete,HardDelete -AuditEnabled $true -ErrorAction Stop
+                    if ( $($auditRecipient.Count) ) {
+                        for ($i = 0 ; $i -lt $auditRecipient.Count ; $i++) {
+                            Logger -logSev "d" -Message "Setting audit policy for mailbox: $auditRecipient[$i]"
+                            Set-Mailbox -Identity $($auditRecipient[$i].guid.ToString()) -AuditLogAgeLimit 90 -AuditEnabled $true -AuditAdmin UpdateCalendarDelegation,UpdateFolderPermissions,UpdateInboxRules,Update,Move,MoveToDeletedItems,SoftDelete,HardDelete,FolderBind,SendAs,SendOnBehalf,Create,Copy,MessageBind -AuditDelegate UpdateFolderPermissions,UpdateInboxRules,Update,Move,MoveToDeletedItems,SoftDelete,HardDelete,FolderBind,SendAs,SendOnBehalf,Create -AuditOwner UpdateCalendarDelegation,UpdateFolderPermissions,UpdateInboxRules,Update,MoveToDeletedItems,Move,SoftDelete,HardDelete,Create,MailboxLogin
+                        }
+                    } else {
+                        Logger -logSev "d" -Message "Setting audit policy for mailbox: $auditRecipient"
+                        Set-Mailbox -Identity $($auditRecipient.guid.ToString()) -AuditLogAgeLimit 90 -AuditEnabled $true -AuditAdmin UpdateCalendarDelegation,UpdateFolderPermissions,UpdateInboxRules,Update,Move,MoveToDeletedItems,SoftDelete,HardDelete,FolderBind,SendAs,SendOnBehalf,Create,Copy,MessageBind -AuditDelegate UpdateFolderPermissions,UpdateInboxRules,Update,Move,MoveToDeletedItems,SoftDelete,HardDelete,FolderBind,SendAs,SendOnBehalf,Create -AuditOwner UpdateCalendarDelegation,UpdateFolderPermissions,UpdateInboxRules,Update,MoveToDeletedItems,Move,SoftDelete,HardDelete,Create,MailboxLogin
+                    }
+
                 } Catch {
                     #Catch handles conflicts where multiple users share the same firstname, lastname.
                     Write-Host "Issue: $($PSItem.ToString())"
-                    for ($i = 0 ; $i -lt $auditRecipient.Count ; $i++) {
-                        Set-Mailbox -Identity $($auditRecipient[$i].guid.ToString()) -AuditDelegate SendAs,SendOnBehalf,Create,Update,SoftDelete,HardDelete -AuditEnabled $true
-                    }
+                    Logger -logSev "e" -Message "Set-Mailbox: $($PSItem.ToString())"
                 }
 
             }
@@ -428,7 +435,7 @@ if ( $log -eq $true) {
             Write-Host "Finished attempting to enable auditing on $UAMBCount mailboxes." -ForegroundColor Yellow
         }
         if ($UAMBCount -eq 0){} # Do nothing, all mailboxes have auditing enabled.
-        Logger -logSev "s" -Message "Completed Inbox Audit Update"
+        Logger -logSev "s" -Message "End Inbox Audit Update"
     }
 
     #Create phishLog if file does not exist.
@@ -445,7 +452,7 @@ if ( $log -eq $true) {
         if ($messageTrace.Count -ne 0) {
             $messageTraces += $messageTrace
             Write-Verbose "Page #: $page"
-            Logger -logSev "i" -Message "Processing page $page"
+            Logger -logSev "i" -Message "Processing page: $page"
         }
         else {
             break
@@ -457,24 +464,48 @@ if ( $log -eq $true) {
     Logger -logSev "s" -Message "Completed messageTrace"
 
     # Search for Reported Phishing Messages
-    Logger -logSev "i" -Message "Loading previous reports to phishHistory"
-    $phishHistory = Get-Content $phishLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
-    Logger -logSev "i" -Message "Loading current reports to phishTrace"
-    $phishTrace = Get-MessageTrace -RecipientAddress $socMailbox -Status Delivered | Select MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID | Sort-Object Received
-    Logger -logSev "i" -Message "Writing phishTrace to $tmpLog"
+    Try {
+        Logger -logSev "i" -Message "Loading previous reports to phishHistory"
+        $phishHistory = Get-Content $phishLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
+    } Catch {
+        Logger -logSev "e" -Message "Unable to read file: $phishLog"
+        Logger -logSev "s" -Message "PIE Execution Halting"
+        Remove-PSSession $Session
+        exit 1
+    }
+
+    Try {
+        Logger -logSev "i" -Message "Loading current reports to phishTrace"
+        $phishTrace = Get-MessageTrace -RecipientAddress $socMailbox -Status Delivered | Select-Object MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID | Sort-Object Received
+    } Catch {
+        Logger -logSev "e" -Message "Unable to retrieve phishTrace from o365"
+        Logger -logSev "s" -Message "PIE Execution Halting"
+        Remove-PSSession $Session
+    }
     try {
+        Logger -logSev "i" -Message "Writing phishTrace to $tmpLog"
         $phishTrace | Export-Csv $tmpLog -NoTypeInformation
     } Catch {
-        Logger -logSev "e" -Message "Unable to export phishTrace to path $tmpLog"
+        Logger -logSev "e" -Message "Unable to write file: $tmpLog"
+        Logger -logSev "s" -Message "PIE Execution Halting"
+        Remove-PSSession $Session
     }
     
-    $phishNewReports = Get-Content $tmpLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
+    Try {
+        Logger -logSev "i" -Message "Loading phishNewReports"
+        $phishNewReports = Get-Content $tmpLog | ConvertFrom-Csv -Header "MessageTraceID","Received","SenderAddress","RecipientAddress","FromIP","ToIP","Subject","Status","Size","MessageID"
+    } Catch {
+        Logger -logSev "e" -Message "Unable to read to: $tmpLog"
+        Logger -logSev "s" -Message "PIE Execution Halting"
+        Remove-PSSession $Session
+        exit 1
+    }
     if ((get-item $tmpLog).Length -gt 0) {
+        Logger -logSev "i" -Message "Populating newReports"
         $newReports = Compare-Object $phishHistory $phishNewReports -Property MessageTraceID -PassThru -IncludeEqual | Where-Object {$_.SideIndicator -eq '=>' } | Select-Object MessageTraceID,Received,SenderAddress,RecipientAddress,FromIP,ToIP,Subject,Status,Size,MessageID
         Logger -logSev "d" -Message "newReports Sender Address: $($newReports.SenderAddress)"
     } 
     if ($newReports -eq $null) {
-        Write-Host "No phishing e-mails reported."
         Logger -logSev "i" -Message "No new reports detected"
     }
     if ($newReports -ne $null) {
@@ -497,7 +528,14 @@ if ( $log -eq $true) {
             $jsonPie = New-Object -TypeName psobject -Property @{}
             #Add $newReport to $phishLog
             Logger -logSev "i" -Message "Adding new report to phishLog for recipient $($_.RecipientAddress)"
-            #echo "`"$($_.MessageTraceID)`",`"$($_.Received)`",`"$($_.SenderAddress)`",`"$($_.RecipientAddress)`",`"$($_.FromIP)`",`"$($_.ToIP)`",`"$($_.Subject)`",`"$($_.Status)`",`"$($_.Size)`",`"$($_.MessageID)`"" | Out-File $phishLog -Encoding utf8 -Append
+            Try {
+                echo "`"$($_.MessageTraceID)`",`"$($_.Received)`",`"$($_.SenderAddress)`",`"$($_.RecipientAddress)`",`"$($_.FromIP)`",`"$($_.ToIP)`",`"$($_.Subject)`",`"$($_.Status)`",`"$($_.Size)`",`"$($_.MessageID)`"" | Out-File $phishLog -Encoding utf8 -Append
+            } Catch {
+                Logger -logSev "e" -Message "Unable to write to: $phishLog"
+                Logger -logSev "s" -Message "PIE Execution Halting"
+                Remove-PSSession $Session
+                exit 1
+            }
             # Track the user who reported the message
             $reportedBy = $($_.SenderAddress)
             $reportedSubject = $($_.Subject)
@@ -2593,24 +2631,26 @@ Case Folder:                 $caseID
                 if ( $safelinkTrace -eq $true ) {
                     if ( $scanLinks.length -gt 0 ) {
                         Logger -logSev "s" -Message "Begin Safelink Trace"
-                        $slStatus = "== 365 Safelink Trace ==\r\n"
-                        $scanLinks | ForEach-Object { 
-            
-                            Logger -logSev "d" -Message "365 Safelinks - Inspecting URL: $_"
-                            $slTraceResults = Get-UrlTrace -UrlOrDomain "$_"
+                        $sltStatus = "== 365 Safelink Trace ==\r\n"
+                        $sltClear = $null
+                        $scanLinks | ForEach-Object {
 
-                            if ( $slTraceResults ) {
-                                $slTraceResults | ForEach-Object {
-                                    $slStatus += "URL: $($_.Url) \r\nStatus: Clicked | Clicked On: $($_.Clicked)UTC | By recipient $($_.RecipientAddress)\r\n\r\n"
+                            Logger -logSev "d" -Message "365 Safelinks - Inspecting URL: $_"
+                            $sltResults = Get-UrlTrace -UrlOrDomain "$_"
+
+                            if ( $sltResults ) {
+                                $sltResults | ForEach-Object {
+                                    $sltStatus += "URL: $($_.Url) \r\nStatus: Clicked | Clicked On: $($_.Clicked)UTC | By recipient $($_.RecipientAddress)\r\n\r\n"
                                     Logger -logSev "s" -Message "365 Safelinks - URL: $($_.Url) Date: $($_.Clicked) UTC By recipient $($_.RecipientAddress)"
                                 }
                             } else {
-                                $slStatus += "URL: $_ \r\nStatus: No access recorded\r\n\r\n"
+                                $sltClear += "$_\r\n"
                                 Logger -logSev "i" -Message "365 Safelinks - No access record for URL: $_"
                             }
-                            $slTraceResults = $null
+                            $sltResults = $null
                         }
-                        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$slStatus" -token $caseAPItoken -pluginLogLevel $pluginLogLevel -runLog $runLog
+                        $sltStatus += "No access reported:\r\n$sltClear\r\n"
+                        & $pieFolder\plugins\Case-API.ps1 -lrhost $LogRhythmHost -casenum $caseNumber -updateCase "$sltStatus" -token $caseAPItoken -pluginLogLevel $pluginLogLevel -runLog $runLog
 
                         Write-Output "============================================================" >> "$caseFolder$caseID\spam-report.txt"
                         Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
@@ -2618,7 +2658,7 @@ Case Folder:                 $caseID
                         Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
                         Write-Output $slStatus.Replace("\r\n","`r`n") >> "$caseFolder$caseID\spam-report.txt"
                         Write-Output "" >> "$caseFolder$caseID\spam-report.txt"
-        
+
                         Logger -logSev "s" -Message "End Safelink Trace"
                     }
                 }
