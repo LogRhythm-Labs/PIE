@@ -31,7 +31,7 @@ The Phishing Intelligence Engine (PIE) is a framework that will assist with the 
 	- 365 Message Trace: Added handler for special characters in e-mail subject line.
 	- 365 Message Trace: Updated autoAuditMailboxes to support handling multiple matched entries.
 	- 365 Message Trace: Added support to filter out user@example.onmicrosoft.com from message counts.
-	- 365 Message Trace: Added URL whitelist to prevent scanning/analysis of frequenty legitimate sources.
+	- 365 Message Trace: Added URL whitelist to prevent scanning/analysis of frequently legitimate sources.
 	- 365 Message Trace: New E-mail Address Template Config.
 	- 365 Message Trace: Parsing of Office 365 Safe Links is now automatic and does not require configuration.
 	- 365 Message Trace: Various Bug Fixes and execution improvements.
@@ -99,7 +99,7 @@ Plugins that can be integrated with the LogRhythm SIEM, allowing for automated r
 
 #### 7) [Report Phishing Message Button](/Outlook-Button/)
 
-Addon for Microsoft Outlook to allow for easy reporting of Phishing Attacks.
+Add-on for Microsoft Outlook to allow for easy reporting of Phishing Attacks.
 
 #### 8) [Architecture](/images/PIE-Architecture.png)
 
